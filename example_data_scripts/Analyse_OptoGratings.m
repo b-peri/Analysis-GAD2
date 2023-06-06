@@ -13,12 +13,6 @@
 
 
 %% 
-% Load in Correct Data File
-DataFiles = dir(fullfile("D:\NIN\example_data_scripts\*.mat"));
-FileNames = {DataFiles.name};
-sAP_Files = FileNames(endsWith(FileNames, '_Synthesis.mat'));
-load(fullfile(DataFiles(1).folder,sAP_Files{1}));
-
 % Get stimulus info
 sAP = sSynthData;
 intNumClu = length(sAP.sCluster); % Grabs number of clusters/putative cells (Idk where I can see whether this is single or MU?)
@@ -46,7 +40,7 @@ indExclude = [find(indExcludeOn) find(indExcludeOff)];
 for intCh = 1:length(sAP.sCluster) % For each cluster:
     % vecSpikes = vecSpikeSecs(vecSpikeCh == vecUnique(intCh));
     vecSpikes = sAP.sCluster(intCh).SpikeTimes;
-    dblZetaP = zetatest(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto
+    dblZetaP = getZeta(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto
     if dblZetaP < 0.01 %&& sCluster(intCh).Violations1ms < 0.25 && abs(sCluster(intCh).NonStationarity) < 0.25 % ONLY plots figures for units that are VISUALLY RESPONSIVE (according to Zeta)
         figure; hold on;
         [vecMean,vecSEM,vecWindowBinCenters,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(~vecLaserOn),sOptions); %FROM JORRIT'S GENERALANALYSIS repo

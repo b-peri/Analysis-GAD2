@@ -59,8 +59,8 @@ vecLaserOn = structEP.vecOptoOn; % Logical array: Tells whether opto was on for 
 
 %% Prepare Output Table
 
-Subject = sAP.sJson.subject
-% Output = table();
+Subject = sAP.sJson.subject;
+% Output = {};
 DataOut = struct;
 DataOut.Cluster = table;
 % Output.Mouse = struct;
@@ -71,76 +71,95 @@ DataOut.Cluster = table;
 % Visually Evoked Rate = Mean rate in 0-1s after stim onset (entire stim
 % presentation) - Spontaneous Rate
 
-sOptions.handleFig = -1; % COME BACK TO THIS
-vecTime = [-1 -0.1 0 1] % Bin edges for Spike Counting w/ Histcounts
-binDur = [vecTime(2) - vecTime(1), vecTime(4) - vecTime(3)] % Binsize [Spontaneous, Evoked] 
-ExclWindowSRate = [vecStimOnSecs'-1 vecStimOnSecs'-0.1] % Spontaneous Rate
+BinEdge = [-1 -0.1 0 1]; % Bin edges for Spike Counting w/ Histcounts
+binDur = [BinEdge(2) - BinEdge(1), BinEdge(4) - BinEdge(3)]; % Binsize [Spontaneous, Evoked] 
+ExclWindowSRate = [vecStimOnSecs'-1 vecStimOnSecs'-0.1]; % Spontaneous Rate
+n_trials = numel(vecStimOnSecs); % Number of Trials
 
 for intCh = 1:length(sAP.sCluster) % For each cluster:
     vecSpikes = sAP.sCluster(intCh).SpikeTimes;
-    dblZetaP = zetatest(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto -> Visually responsive neurons
+    dblZetaP = getZeta(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto -> Visually responsive neurons
     if dblZetaP < 0.01 %&& sCluster(intCh).Violations1ms < 0.25 && abs(sCluster(intCh).NonStationarity) < 0.25 % ONLY plots figures for units that are VISUALLY RESPONSIVE (according to Zeta)
         % Opto Inhibition
         sCounts_Opto = zeros(numel(vecStimOnSecs),2);
-        for intTrial=1:numel(vecStimOnSecs)
-	        vecTheseEdges = vecTime + vecStimOnSecs(intTrial); % Add stim onset time for this trial to rel. bin edges to get absolute bin edges
+        for intTrial=1:n_trials
+	        vecTheseEdges = BinEdge + vecStimOnSecs(intTrial); % Add stim onset time for this trial to rel. bin edges to get absolute bin edges
 	        [vecCounts,edges] = histcounts(vecSpikes,vecTheseEdges);
 	        sCounts_Opto(intTrial,1) = vecCounts(1); % Counts Spontaneous Rate
             sCounts_Opto(intTrial,2) = vecCounts(3); % Count for Visual Response
         end
         
         sRate_Opto = [sCounts_Opto(:,1)/binDur(1) sCounts_Opto(:,2)/binDur(2)];
-        sRate_OptoOn = sRate_Opto(vecLaserOn, 2); % Evoked rates for Opto trials
-        sRate_OptoOff = sRate_Opto(~vecLaserOn, 2); % Evoked rates non-Opto trials
+        sRate_OptoOn = sRate_Opto(vecLaserOn, 2); % Rates during stim for Opto trials
+        sRate_OptoOff = sRate_Opto(~vecLaserOn, 2); % Rates during stim non-Opto trials
         
+        % 
         SpontRate = mean(sCounts_Opto(:,1)); 
+
+        % Test: I am subtracting SpontRate from each sRate in stim period 
+        % to get EvokedRate PER TRIAL. Seems like I need this to compute
+        % Channel-wise ttest.
+        % (TALK TO ROBIN ABOUT THIS ON THURS)
+        EvokedRate_OptoOn_Ch = sRate_OptoOn - SpontRate;
+        EvokedRate_OptoOff_Ch = sRate_OptoOff - SpontRate;
+    
+        % Overall Visually Evoked FRs (Channel)
         EvokedRate_OptoOn = mean(sRate_OptoOn) - SpontRate;
         EvokedRate_OptoOff = mean(sRate_OptoOff) - SpontRate;
 
-        SEM_OptoOn = std(sRate_OptoOn, [], 1)
-        SEM_OptoOff = std(sRate_OptoOff, [], 1)
+        % Standard Error
+        SEM_OptoOn = std(sRate_OptoOn, [], 1)/sqrt(n_trials);
+        SEM_OptoOff = std(sRate_OptoOff, [], 1)/sqrt(n_trials);
 
-        % Paired-Sample T-test
-        
+        % Magnitude of Reduction per Channel (ASK ROBIN ABOUT HOW TO COMPUTE THIS)
+        PctChange = (EvokedRate_OptoOn - EvokedRate_OptoOff)/EvokedRate_OptoOff;
+
+        % Paired-Sample T-test (Channel) -> Directional ?
+        p_val = ttest(EvokedRate_OptoOn_Ch, EvokedRate_OptoOff_Ch, 'Alpha', 0.01);
 
         % Write to Table
-        % ...{'Zeta'} = 
+        % ...{...} = dblZeta
+        % ...
+        %  = p_val
     else
         continue
     end
 end        
    
-%% Plots
+%% Test Plots
 
-% dblBinDur = 5e-3; % Binsize of PSTH
-% vecTime = -0.2:dblBinDur:1.2; % PSTH X-Axis range/binsize
-% indExcludeOn = vecTime > -2* dblBinDur & vecTime < 2*dblBinDur; % First millisecond before and after stim onset
-% indExcludeOff = vecTime > (1+ -2* dblBinDur) & vecTime < (1+ 2*dblBinDur); % Ms before and after stim offset
-% indExclude = [find(indExcludeOn) find(indExcludeOff)];
+dblBinDur = 5e-3; % Binsize of PSTH
+vecTime = -0.2:dblBinDur:1.2; % PSTH X-Axis range/binsize
+indExcludeOn = vecTime > -2* dblBinDur & vecTime < 2*dblBinDur; % First millisecond before and after stim onset
+indExcludeOff = vecTime > (1+ -2* dblBinDur) & vecTime < (1+ 2*dblBinDur); % Ms before and after stim offset
+indExclude = [find(indExcludeOn) find(indExcludeOff)];
 
+sOptions = -1;
+
+figure; hold on
 % This was originally in cluster loop above
-        % % PSTH Laser Off
-        % [vecMean_Off,vecSEM_Off,vecWindowBinCenters_Off,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(~vecLaserOn),sOptions); %FROM JORRIT'S GENERALANALYSIS repo
-        % vecMean_Off(indExclude) = NaN;
-        % % PSTH Laser On
-        % [vecMean_On,vecSEM_On,vecWindowBinCenters_On,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(vecLaserOn),sOptions);
-        % vecMean_On(indExclude) = NaN;        
-% plot(vecWindowBinCenters,vecMean,'k');
-        %     % plot(vecWindowBinCenters,vecMean-vecSEM,'k--');
-        %     % plot(vecWindowBinCenters,vecMean+vecSEM,'k--');
-        
-        % plot(vecWindowBinCenters,vecMean,'b');
-        %     % plot(vecWindowBinCenters,vecMean-vecSEM,'b--');
-        %     % plot(vecWindowBinCenters,vecMean+vecSEM,'b--');
-        % 
-        % % title(['Channel: ' num2str(vecUnique(intCh))]);
-        % title(num2str(intCh));
-        % xline(0,'r--')
-        % ylabel('Rate (spks/s)')
-        % xlabel('Time relative to onset (s)')
-        % xlim([min(vecTime) max(vecTime)])
-        % legend('No Opto', 'Opto');
-        % fixfig;
-        % drawnow;
+        % PSTH Laser Off
+        [vecMean_Off,vecSEM_Off,vecWindowBinCenters_Off,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(~vecLaserOn),sOptions); %FROM JORRIT'S GENERALANALYSIS repo
+        vecMean_Off(indExclude) = NaN;
+        % PSTH Laser On
+        [vecMean_On,vecSEM_On,vecWindowBinCenters_On,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(vecLaserOn),sOptions);
+        vecMean_On(indExclude) = NaN;        
+        plot(vecWindowBinCenters,vecMean,'k');
+            % plot(vecWindowBinCenters,vecMean-vecSEM,'k--');
+            % plot(vecWindowBinCenters,vecMean+vecSEM,'k--');
+
+        plot(vecWindowBinCenters,vecMean,'b');
+            % plot(vecWindowBinCenters,vecMean-vecSEM,'b--');
+            % plot(vecWindowBinCenters,vecMean+vecSEM,'b--');
+
+        % title(['Channel: ' num2str(vecUnique(intCh))]);
+        title(num2str(intCh));
+        xline(0,'r--')
+        ylabel('Rate (spks/s)')
+        xlabel('Time relative to onset (s)')
+        xlim([min(vecTime) max(vecTime)])
+        legend('No Opto', 'Opto');
+        fixfig;
+        drawnow;
 
  %% Export
