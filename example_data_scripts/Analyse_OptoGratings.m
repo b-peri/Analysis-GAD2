@@ -1,18 +1,4 @@
-%% OptoGratings Analysis
-% 
-% [] Why is vecStimOffSecs 1 second BEFORE stim onsets?
-% 
-% Robin's example script makes PLOTS, but what we want is an OUTPUT FILE
-% that should give:
-% [] Per Cluster: Optograting PSTH
-% [] Per Mouse: Some metric of OVERALL reduction in sSC specifically (in firing rate?)
-% [] OPTIONAL: Conversion to CSV
 
-% [] Figure out where/whether it says somewhere if clusters are MU or SU
-% [] Separate Figs for SINGLE-UNIT and MULTI-UNIT data?
-
-
-%% 
 % Get stimulus info
 sAP = sSynthData;
 intNumClu = length(sAP.sCluster); % Grabs number of clusters/putative cells (Idk where I can see whether this is single or MU?)
@@ -22,9 +8,6 @@ structEP = sAP.cellStim{1,1}.structEP;  % structEP contains data on a single rec
 vecStimOnSecs = structEP.vecStimOnTime; % For OptoGratings, synchronized stimulus onset times
 vecStimOffSecs = structEP.vecStimOffTime; % For Optogratings, synchronized stimulus OFFset times
 vecLaserOn = structEP.vecOptoOn; % Logical array: Tells whether opto was on for each trial!
-
-%% Prepare Output Table
-% 
 
 %% loop through clusters
 sOptions.handleFig = -1; % COME BACK TO THIS

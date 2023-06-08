@@ -1,47 +1,40 @@
 %% OptoGratings Analysis
 % 
-% Robin's example script makes PLOTS, but what we want is an OUTPUT FILE
-% that should give:
-% [] Per Cluster: Optograting PSTH
-% [] Per Mouse: Some metric of OVERALL reduction in sSC specifically (in firing rate?)
-% [] OPTIONAL: Conversion to CSV
+% Output should give:
+% [] Per Cluster: Opto vs No-Opto
+%       - Single Values (Spontaneous, Evoked Firing Rate (Opto & No-Opto)
+%       - PSTH Values
+% [] Per Mouse: NCells_SigReduced, AverageReduction_sig (In sSC), p_val 
+% (for Opto vs No-Opto), vecMean_mean, vecSEM_mean (HOW? -> Currently SEM over means), 
+% vecBinCenters, n_trials, n_clusters
 
 % OUTPUT -> Currently, Output is a struct w/ output data for a single 
 % mouse. Ultimately want this to be a cell array/table where each entry 
 % corresponds to an individual subject/mouse
 % 
-% For each MouseN = struct;
-%   [] Struct 1: Multi-Unit (Per Cluster, per Mouse)
-%       [X] Zeta-Test value per cluster
-%       [] Spontaneous Rate, Evoked Rate (Opto), Evoked Rate (No-Opto)
-%       [] Repeated measures T-test value PER CLUSTER
-%           [] Also want to know HOW MANY clusters are significantly
-%           _reduced_ by Opto
-%           [] Ask Robin about what test to use and what p-threshold should
-%           be... Do we want a directional test (and then test separately
-%           for reduction and increase?)
-%       [] ULTIMATELY (Low-Priority), would maybe also be nice to have
-%       clusters sorted on anatomical location, and have some value for
-%       where they are exactly (from alignment)
-%   [] ?? -> Struct 2: Single-Unit (Per Cluster, per Mouse)
-%   [] Struct 2/3: Overall
+% For each SubjectN = Cell? Table? Struct?;
+%   [] Struct 1: Single-Unit (Per Cluster)
+%       [] Find a way to pre-allocate vector size
+%       [] ULTIMATELY alignment data -> Need to know whether clusters are
+%       located in sSC
+%   [] Struct 2: Overall
 %       [] T-test value for MEAN REDUCTION over ALL (sSC)
 %       channels
-%   [] Struct 3 (Overall over ALL mice included in analysis)
-%       Should report: 1. Number of mice 2. Total number of neurons
-%       included
+%       [] Number of clusters signfiicantly reduced by opto
+  
+% [] LATER -> Struct 3 (Overall over ALL mice included in analysis)
+%       Should report: 1. Number of mice 2. Total number of
+%       neurons/clusters included
 %       [] Should this be mean of means per mouse or per cluster?
-% [] Figure out where/whether it says somewhere if clusters are MU or SU
-% [] Separate Figs for SINGLE-UNIT and MULTI-UNIT data?
 
 
-%% 
+%% Load in Data
 
 % Load in Correct Data File
-DataFiles = dir(fullfile("C:\Software and Code\Analysis-GAD2\example_data_scripts\*.mat"));
-FileNames = {DataFiles.name};
-sAP_Files = FileNames(endsWith(FileNames, '_Synthesis.mat'));
-load(fullfile(DataFiles(1).folder,sAP_Files{1})); % [] This currently just grabs the first folder in DataFile. May want to change this to be more specific later!
+% DataDirectory = dir(fullfile("C:\Software and Code\Analysis-GAD2\example_data_scripts\*.mat"));
+% FileNames = {DataDirectory.name};
+% sAP_Files = FileNames(endsWith(FileNames, '_Synthesis.mat'));
+% load(fullfile(DataDirectory(1).folder,sAP_Files{1})); % [] This currently just grabs the first folder in DataFile. May want to change this to be more specific later!
 
 %%
 % NOTE: SCRIPT IS CURRENTLY WRITTEN TO HANDLE ONE MOUSE AT A TIME, CHANGE
@@ -59,28 +52,52 @@ vecLaserOn = structEP.vecOptoOn; % Logical array: Tells whether opto was on for 
 
 %% Prepare Output Table
 
-Subject = sAP.sJson.subject;
-% Output = {};
-DataOut = struct;
-DataOut.Cluster = table;
-% Output.Mouse = struct;
+% Info to Have Per Mouse: 
 
-%% Analysis 1: Opto vs No-Opto
+DataOut.Subject = sAP.sJson.subject;
 
+% Table Headers: ClusterN, zeta, SpontRate, EvokedRate_OptoOn,
+% EvokedRate_OptoOff, SEM_On, SEM_Off
+ClusterN = [];
+zeta_p = [];
+SpontRate = [];
+ER_OptoOn = [];
+ER_OptoOff = [];
+SE_OptoOn = [];
+SE_OptoOff = [];
+PctChange = [];
+p_val = [];
+PSTHMean_On = [];
+PSTHSEM_On = [];
+PSTHBinCenters_On = [];
+PSTHMean_Off = [];
+PSTHSEM_Off = [];
+PSTHBinCenters_Off = [];
+
+%% Analysis
+
+% -- Prep Analysis pt 1. --
 % Spontaneous Rate = Mean rate in -1s - -100ms before stim onset
-% Visually Evoked Rate = Mean rate in 0-1s after stim onset (entire stim
-% presentation) - Spontaneous Rate
-
-BinEdge = [-1 -0.1 0 1]; % Bin edges for Spike Counting w/ Histcounts
-binDur = [BinEdge(2) - BinEdge(1), BinEdge(4) - BinEdge(3)]; % Binsize [Spontaneous, Evoked] 
-ExclWindowSRate = [vecStimOnSecs'-1 vecStimOnSecs'-0.1]; % Spontaneous Rate
+% Visually Evoked Rate = Mean rate in 10-250ms after stim onset - Spontaneous Rate
+BinEdge = [-1 -0.1 0.01 0.250]; % Bin edges for Spike Counting w/ Histcounts
+binDur = [BinEdge(2) - BinEdge(1), BinEdge(4) - BinEdge(3)]; % Bin Duration [Spontaneous, Evoked] -> Divisor when calculating Firing Rate later (Spikes/Period)
+ExclWindowSRate = [vecStimOnSecs'-1 vecStimOnSecs'-0.1]; % Excl. 100ms before stimulus onset -> Remove artefact
 n_trials = numel(vecStimOnSecs); % Number of Trials
 
+% -- Prep Analysis pt 2. --
+dblBinDur = 5e-3; % Binsize of PSTH
+vecTime = -0.2:dblBinDur:1.2; % PSTH X-Axis range/binsize
+indExcludeOn = vecTime > -2* dblBinDur & vecTime < 2*dblBinDur; % First millisecond before and after stim onset
+indExcludeOff = vecTime > (1+ -2* dblBinDur) & vecTime < (1+ 2*dblBinDur); % Ms before and after stim offset
+indExclude = [find(indExcludeOn) find(indExcludeOff)];
+sOptions = -1;
+
+% -- Start Loop --
 for intCh = 1:length(sAP.sCluster) % For each cluster:
     vecSpikes = sAP.sCluster(intCh).SpikeTimes;
     dblZetaP = getZeta(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto -> Visually responsive neurons
     if dblZetaP < 0.01 %&& sCluster(intCh).Violations1ms < 0.25 && abs(sCluster(intCh).NonStationarity) < 0.25 % ONLY plots figures for units that are VISUALLY RESPONSIVE (according to Zeta)
-        % Opto Inhibition
+        % -- Analysis pt 1.  Opto vs No-Opto --
         sCounts_Opto = zeros(numel(vecStimOnSecs),2);
         for intTrial=1:n_trials
 	        vecTheseEdges = BinEdge + vecStimOnSecs(intTrial); % Add stim onset time for this trial to rel. bin edges to get absolute bin edges
@@ -93,73 +110,133 @@ for intCh = 1:length(sAP.sCluster) % For each cluster:
         sRate_OptoOn = sRate_Opto(vecLaserOn, 2); % Rates during stim for Opto trials
         sRate_OptoOff = sRate_Opto(~vecLaserOn, 2); % Rates during stim non-Opto trials
         
-        % 
-        SpontRate = mean(sCounts_Opto(:,1)); 
-
-        % Test: I am subtracting SpontRate from each sRate in stim period 
-        % to get EvokedRate PER TRIAL. Seems like I need this to compute
-        % Channel-wise ttest.
-        % (TALK TO ROBIN ABOUT THIS ON THURS)
-        EvokedRate_OptoOn_Ch = sRate_OptoOn - SpontRate;
-        EvokedRate_OptoOff_Ch = sRate_OptoOff - SpontRate;
+        % Spontaneous Rate
+        SpontRate_Cl = mean(sCounts_Opto(:,1)); 
     
         % Overall Visually Evoked FRs (Channel)
-        EvokedRate_OptoOn = mean(sRate_OptoOn) - SpontRate;
-        EvokedRate_OptoOff = mean(sRate_OptoOff) - SpontRate;
+        EvokedRate_OptoOn = mean(sRate_OptoOn) - SpontRate_Cl;
+        EvokedRate_OptoOff = mean(sRate_OptoOff) - SpontRate_Cl;
 
         % Standard Error
         SEM_OptoOn = std(sRate_OptoOn, [], 1)/sqrt(n_trials);
         SEM_OptoOff = std(sRate_OptoOff, [], 1)/sqrt(n_trials);
 
-        % Magnitude of Reduction per Channel (ASK ROBIN ABOUT HOW TO COMPUTE THIS)
-        PctChange = (EvokedRate_OptoOn - EvokedRate_OptoOff)/EvokedRate_OptoOff;
+        % Magnitude of Reduction per Channel
+        PctChange_Cl = (EvokedRate_OptoOn - EvokedRate_OptoOff)/EvokedRate_OptoOff;
 
-        % Paired-Sample T-test (Channel) -> Directional ?
-        p_val = ttest(EvokedRate_OptoOn_Ch, EvokedRate_OptoOff_Ch, 'Alpha', 0.01);
+        % Test: I am subtracting SpontRate from each sRate in stim period 
+        % to get EvokedRate PER TRIAL. Seems like I need this to compute
+        % Channel-wise ttest.
+        % (TALK TO ROBIN ABOUT THIS ON THURS) !!!!!!!!!!
+        EvokedRate_OptoOn_Cl = sRate_OptoOn - SpontRate_Cl;
+        EvokedRate_OptoOff_Cl = sRate_OptoOff - SpontRate_Cl;
 
-        % Write to Table
-        % ...{...} = dblZeta
-        % ...
-        %  = p_val
+        % Paired-Sample T-test (Channel) -> THIS IS DEFINITELY WEIRD ?
+        [~,p_val_Cl] = ttest(EvokedRate_OptoOn_Cl, EvokedRate_OptoOff_Cl, 'Alpha', 0.01);
+        
+        % -- Analysis pt. 2: PSTH --
+        % PSTH Laser Off
+        [vecMean_Off,vecSEM_Off,vecWindowBinCenters_Off,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(~vecLaserOn),sOptions); %FROM JORRIT'S GENERALANALYSIS repo
+        vecMean_Off(indExclude) = NaN;
+        
+        % PSTH Laser On 
+        [vecMean_On,vecSEM_On,vecWindowBinCenters_On,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(vecLaserOn),sOptions);
+        vecMean_On(indExclude) = NaN;
+        
+        % -- Write to Vectors --
+        ClusterN = [ClusterN; intCh];
+        zeta_p = [zeta_p; dblZetaP];
+        SpontRate = [SpontRate; SpontRate_Cl];
+        ER_OptoOn = [ER_OptoOn; EvokedRate_OptoOn];
+        ER_OptoOff = [ER_OptoOff; EvokedRate_OptoOff];
+        SE_OptoOn = [SE_OptoOn; SEM_OptoOn];
+        SE_OptoOff = [SE_OptoOff; SEM_OptoOff];
+        PctChange = [PctChange; PctChange_Cl];
+        p_val = [p_val; p_val_Cl];
+        PSTHMean_On = [PSTHMean_On; vecMean_On];
+        PSTHSEM_On = [PSTHSEM_On; vecSEM_On];
+        PSTHBinCenters_On = [PSTHBinCenters_On; vecWindowBinCenters_On];
+        PSTHMean_Off = [PSTHMean_Off; vecMean_Off];
+        PSTHSEM_Off = [PSTHSEM_Off; vecSEM_Off];
+        PSTHBinCenters_Off = [PSTHBinCenters_Off; vecWindowBinCenters_Off];
     else
         continue
     end
 end        
-   
-%% Test Plots
 
-dblBinDur = 5e-3; % Binsize of PSTH
-vecTime = -0.2:dblBinDur:1.2; % PSTH X-Axis range/binsize
-indExcludeOn = vecTime > -2* dblBinDur & vecTime < 2*dblBinDur; % First millisecond before and after stim onset
-indExcludeOff = vecTime > (1+ -2* dblBinDur) & vecTime < (1+ 2*dblBinDur); % Ms before and after stim offset
-indExclude = [find(indExcludeOn) find(indExcludeOff)];
+%% Analysis pt 3: Overall Values
 
-sOptions = -1;
+n_clusters = numel(ClusterN);
 
-figure; hold on
-% This was originally in cluster loop above
-        % PSTH Laser Off
-        [vecMean_Off,vecSEM_Off,vecWindowBinCenters_Off,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(~vecLaserOn),sOptions); %FROM JORRIT'S GENERALANALYSIS repo
-        vecMean_Off(indExclude) = NaN;
-        % PSTH Laser On
-        [vecMean_On,vecSEM_On,vecWindowBinCenters_On,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(vecLaserOn),sOptions);
-        vecMean_On(indExclude) = NaN;        
-        plot(vecWindowBinCenters,vecMean,'k');
-            % plot(vecWindowBinCenters,vecMean-vecSEM,'k--');
-            % plot(vecWindowBinCenters,vecMean+vecSEM,'k--');
+Overall.NCells_Reduced = sum((p_val < 0.01) & PctChange < 0);
+Overall.MeanPctReduction = mean(PctChange(PctChange < 0));
+Overall.NCells_Increased = sum((p_val < 0.01) & PctChange > 0);
+Overall.MeanPctIncrease = mean(PctChange((p_val<0.01) & (PctChange > 0)));
+Overall.ER_OptoOn = mean(ER_OptoOn);
+Overall.ER_OptoOff = mean(ER_OptoOff);
+Overall.SE_OptoOn = std(ER_OptoOn, [], 1)/sqrt(n_clusters);
+Overall.SE_OptoOff = std(ER_OptoOff, [], 1)/sqrt(n_clusters);
+[~, Overall.p_val] = ttest(ER_OptoOn, ER_OptoOff, 'Alpha', 0.01); % Inclusion criteria? Only negatively modulated cells?
+Overall.PSTHMean_On = mean(PSTHMean_On, 1);
+Overall.PSTHSEM_On = std(PSTHMean_On, 1)/sqrt(n_clusters);
+Overall.PSTHMean_Off = mean(PSTHMean_Off, 1);
+Overall.PSTHSEM_Off = std(PSTHMean_Off, 1)/sqrt(n_clusters);
+Overall.PSTHBinSize = 5e-3; % Binsize of PSTH
+Overall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
+Overall.n_trials = n_trials;
+Overall.n_clusters = n_clusters;
 
-        plot(vecWindowBinCenters,vecMean,'b');
-            % plot(vecWindowBinCenters,vecMean-vecSEM,'b--');
-            % plot(vecWindowBinCenters,vecMean+vecSEM,'b--');
 
-        % title(['Channel: ' num2str(vecUnique(intCh))]);
-        title(num2str(intCh));
-        xline(0,'r--')
-        ylabel('Rate (spks/s)')
-        xlabel('Time relative to onset (s)')
-        xlim([min(vecTime) max(vecTime)])
-        legend('No Opto', 'Opto');
-        fixfig;
-        drawnow;
+%% Write Output
+
+% Write Table
+DataOut.ClusterData = table(ClusterN, zeta_p, SpontRate, ER_OptoOn, ...
+    ER_OptoOff, SE_OptoOn, SE_OptoOff, PctChange, p_val, PSTHMean_On, ...
+    PSTHSEM_On, PSTHBinCenters_On, PSTHMean_Off, PSTHSEM_Off, ...
+    PSTHBinCenters_Off);
+
+% Overall Subject Data
+DataOut.OverallData = Overall;
+
+%% Test Plots - DON'T RUN THIS DURING ANALYSIS
+
+DataOut.ClusterSig = DataOut.ClusterData(p_val < 0.01,:);
+
+for intCh = DataOut.ClusterSig.ClusterN'
+    row = DataOut.ClusterSig(DataOut.ClusterSig.ClusterN == intCh, :);
+    vecSpikes = sAP.sCluster(intCh).SpikeTimes;
+    figure; hold on;
+    plot(row.PSTHBinCenters_Off,row.PSTHMean_Off,'k');
+        % plot(vecWindowBinCenters,vecMean-vecSEM,'k--');
+        % plot(vecWindowBinCenters,vecMean+vecSEM,'k--');
+    plot(row.PSTHBinCenters_On,row.PSTHMean_On,'b');
+        % plot(vecWindowBinCenters,vecMean-vecSEM,'b--');
+        % plot(vecWindowBinCenters,vecMean+vecSEM,'b--');
+    
+    % title(['Channel: ' num2str(vecUnique(intCh))]);
+    title(num2str(intCh));
+    xline(0,'r--')
+    ylabel('Rate (spks/s)')
+    xlabel('Time from stimulus onset (s)')
+    xlim([min(vecTime) max(vecTime)])
+    legend('No Opto', 'Opto');
+    fixfig;
+    drawnow;
+    hold off;
+end
+
+% Barplots
+figure; hold on;
+bar_pl = bar([Overall.ER_OptoOff Overall.ER_OptoOn]);
+dot_pl = plot([1 2],[ER_OptoOff ER_OptoOn],'-','Color',[0, 0, 0, 0.3]);
+scatter([1 2],[ER_OptoOff ER_OptoOn],'MarkerEdgeColor', [0 0 0], 'MarkerEdgeAlpha',0.5);
+bar_err = errorbar([1,2],[Overall.ER_OptoOff Overall.ER_OptoOn], [Overall.SE_OptoOff Overall.SE_OptoOn]);
+bar_err.Color = [0.8 0 0];
+bar_err.LineStyle = 'none';
+bar_err.LineWidth = 1.5;
+ylabel('Evoked Rate (spks/s)');
+xticks([1 2]);
+xticklabels({"Laser OFF", "Laser ON"});
+hold off
 
  %% Export
