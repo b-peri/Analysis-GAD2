@@ -17,10 +17,7 @@
 %       [] Find a way to pre-allocate vector size
 %       [] ULTIMATELY alignment data -> Need to know whether clusters are
 %       located in sSC
-%   [] Struct 2: Overall
-%       [] T-test value for MEAN REDUCTION over ALL (sSC)
-%       channels
-%       [] Number of clusters signfiicantly reduced by opto
+%   [X] Struct 2: Overall
   
 % [] LATER -> Struct 3 (Overall over ALL mice included in analysis)
 %       Should report: 1. Number of mice 2. Total number of
@@ -177,12 +174,16 @@ Overall.ER_OptoOff = mean(ER_OptoOff);
 Overall.SE_OptoOn = std(ER_OptoOn, [], 1)/sqrt(n_clusters);
 Overall.SE_OptoOff = std(ER_OptoOff, [], 1)/sqrt(n_clusters);
 [~, Overall.p_val] = ttest(ER_OptoOn, ER_OptoOff, 'Alpha', 0.01); % Inclusion criteria? Only negatively modulated cells?
-Overall.PSTHMean_On = mean(PSTHMean_On, 1);
-Overall.PSTHSEM_On = std(PSTHMean_On, 1)/sqrt(n_clusters);
-Overall.PSTHMean_Off = mean(PSTHMean_Off, 1);
-Overall.PSTHSEM_Off = std(PSTHMean_Off, 1)/sqrt(n_clusters);
+
+norm = max(PSTHMean_Off,[],2);
+Overall.PSTHMean_Off_norm = mean(PSTHMean_Off./norm, 1);
+Overall.PSTHSEM_Off_norm = std(PSTHMean_Off./norm, 1)/sqrt(n_clusters);
+Overall.PSTHMean_On_norm = mean(PSTHMean_On./norm, 1);
+Overall.PSTHSEM_On_norm = std(PSTHMean_On./norm, 1)/sqrt(n_clusters);
 Overall.PSTHBinSize = 5e-3; % Binsize of PSTH
 Overall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
+Overall.PSTHBinCenters = PSTHBinCenters_On(1,:);
+
 Overall.n_trials = n_trials;
 Overall.n_clusters = n_clusters;
 
@@ -202,27 +203,31 @@ DataOut.OverallData = Overall;
 
 DataOut.ClusterSig = DataOut.ClusterData(p_val < 0.01,:);
 
-for intCh = DataOut.ClusterSig.ClusterN'
-    row = DataOut.ClusterSig(DataOut.ClusterSig.ClusterN == intCh, :);
-    vecSpikes = sAP.sCluster(intCh).SpikeTimes;
-    figure; hold on;
-    plot(row.PSTHBinCenters_Off,row.PSTHMean_Off,'k');
-        % plot(vecWindowBinCenters,vecMean-vecSEM,'k--');
-        % plot(vecWindowBinCenters,vecMean+vecSEM,'k--');
-    plot(row.PSTHBinCenters_On,row.PSTHMean_On,'b');
-        % plot(vecWindowBinCenters,vecMean-vecSEM,'b--');
-        % plot(vecWindowBinCenters,vecMean+vecSEM,'b--');
-    
-    % title(['Channel: ' num2str(vecUnique(intCh))]);
-    title(num2str(intCh));
-    xline(0,'r--')
-    ylabel('Rate (spks/s)')
-    xlabel('Time from stimulus onset (s)')
-    xlim([min(vecTime) max(vecTime)])
-    legend('No Opto', 'Opto');
-    fixfig;
-    drawnow;
-    hold off;
+PlotClusters = 0;
+
+if PlotClusters
+    for intCh = DataOut.ClusterSig.ClusterN'
+        row = DataOut.ClusterSig(DataOut.ClusterSig.ClusterN == intCh, :);
+        vecSpikes = sAP.sCluster(intCh).SpikeTimes;
+        figure; hold on;
+        plot(row.PSTHBinCenters_Off,row.PSTHMean_Off,'k');
+            % plot(vecWindowBinCenters,vecMean-vecSEM,'k--');
+            % plot(vecWindowBinCenters,vecMean+vecSEM,'k--');
+        plot(row.PSTHBinCenters_On,row.PSTHMean_On,'b');
+            % plot(vecWindowBinCenters,vecMean-vecSEM,'b--');
+            % plot(vecWindowBinCenters,vecMean+vecSEM,'b--');
+        
+        % title(['Channel: ' num2str(vecUnique(intCh))]);
+        title(num2str(intCh));
+        xline(0,'r--')
+        ylabel('Spiking Rate (spks/s)')
+        xlabel('Time from stimulus onset (s)')
+        xlim([min(vecTime) max(vecTime)])
+        legend('No Opto', 'Opto');
+        fixfig;
+        drawnow;
+        hold off;
+    end
 end
 
 % Barplots
@@ -238,5 +243,18 @@ ylabel('Evoked Rate (spks/s)');
 xticks([1 2]);
 xticklabels({"Laser OFF", "Laser ON"});
 hold off
+
+% Mean Response
+figure; hold on;
+plot(DataOut.OverallData.PSTHBinCenters, DataOut.OverallData.PSTHMean_Off_norm,'k');
+plot(DataOut.OverallData.PSTHBinCenters, DataOut.OverallData.PSTHMean_On_norm,'b');
+xline(0,'r--')
+ylabel('Spiking Rate (% of Peak)')
+xlabel('Time from stimulus onset (s)')
+xlim([min(vecTime) max(vecTime)])
+legend('No Opto', 'Opto');
+fixfig;
+drawnow;
+hold off;
 
  %% Export
