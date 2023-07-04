@@ -92,7 +92,7 @@ sOptions = -1;
 % -- Start Loop --
 for intCh = 1:length(sAP.sCluster) % For each cluster:
     vecSpikes = sAP.sCluster(intCh).SpikeTimes;
-    dblZetaP = getZeta(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto -> Visually responsive neurons
+    dblZetaP = zetatest(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto -> Visually responsive neurons
     if dblZetaP < 0.01 %&& sCluster(intCh).Violations1ms < 0.25 && abs(sCluster(intCh).NonStationarity) < 0.25 % ONLY plots figures for units that are VISUALLY RESPONSIVE (according to Zeta)
         % -- Analysis pt 1.  Opto vs No-Opto --
         sCounts_Opto = zeros(numel(vecStimOnSecs),2);
@@ -121,10 +121,7 @@ for intCh = 1:length(sAP.sCluster) % For each cluster:
         % Magnitude of Reduction per Channel
         PctChange_Cl = (EvokedRate_OptoOn - EvokedRate_OptoOff)/EvokedRate_OptoOff;
 
-        % Test: I am subtracting SpontRate from each sRate in stim period 
-        % to get EvokedRate PER TRIAL. Seems like I need this to compute
-        % Channel-wise ttest.
-        % (TALK TO ROBIN ABOUT THIS ON THURS) !!!!!!!!!!
+        % EvokedRate per Trial
         EvokedRate_OptoOn_Cl = sRate_OptoOn - SpontRate_Cl;
         EvokedRate_OptoOff_Cl = sRate_OptoOff - SpontRate_Cl;
 
@@ -133,7 +130,7 @@ for intCh = 1:length(sAP.sCluster) % For each cluster:
         
         % -- Analysis pt. 2: PSTH --
         % PSTH Laser Off
-        [vecMean_Off,vecSEM_Off,vecWindowBinCenters_Off,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(~vecLaserOn),sOptions); %FROM JORRIT'S GENERALANALYSIS repo
+        [vecMean_Off,vecSEM_Off,vecWindowBinCenters_Off,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(~vecLaserOn),sOptions);
         vecMean_Off(indExclude) = NaN;
         
         % PSTH Laser On 
@@ -191,15 +188,15 @@ Overall.n_clusters = n_clusters;
 %% Write Output
 
 % Write Table
-DataOut.ClusterData = table(ClusterN, zeta_p, SpontRate, ER_OptoOn, ...
-    ER_OptoOff, SE_OptoOn, SE_OptoOff, PctChange, p_val, PSTHMean_On, ...
-    PSTHSEM_On, PSTHBinCenters_On, PSTHMean_Off, PSTHSEM_Off, ...
-    PSTHBinCenters_Off);
+DataOut.ClusterData = table(ClusterN, zeta_p, SpontRate, ER_OptoOff, ...
+    ER_OptoOn, SE_OptoOff, SE_OptoOn, PctChange, p_val, PSTHMean_Off, ...
+    PSTHSEM_Off, PSTHBinCenters_Off, PSTHMean_On, PSTHSEM_On, ...
+    PSTHBinCenters_On);
 
 % Overall Subject Data
 DataOut.OverallData = Overall;
 
-%% Test Plots - DON'T RUN THIS DURING ANALYSIS
+%% Test Plots
 
 DataOut.ClusterSig = DataOut.ClusterData(p_val < 0.01,:);
 
@@ -248,10 +245,11 @@ hold off
 figure; hold on;
 plot(DataOut.OverallData.PSTHBinCenters, DataOut.OverallData.PSTHMean_Off_norm,'k');
 plot(DataOut.OverallData.PSTHBinCenters, DataOut.OverallData.PSTHMean_On_norm,'b');
-xline(0,'r--')
-ylabel('Spiking Rate (% of Peak)')
-xlabel('Time from stimulus onset (s)')
-xlim([min(vecTime) max(vecTime)])
+xline(0,'r--');
+ylabel('Spiking Rate (% of Peak)');
+xlabel('Time from stimulus onset (s)');
+xlim([min(vecTime) max(vecTime)]);
+text(0.94, 0.6, sprintf('%g units', n_clusters), 'FontSize',15);
 legend('No Opto', 'Opto');
 fixfig;
 drawnow;
