@@ -1,41 +1,52 @@
 %% OptoGratings Analysis
-% 
+
 % Output should give:
-% [] Per Cluster: Opto vs No-Opto
+% [X] Per Cluster: Opto vs No-Opto
 %       - Single Values (Spontaneous, Evoked Firing Rate (Opto & No-Opto)
 %       - PSTH Values
-% [] Per Mouse: NCells_SigReduced, AverageReduction_sig (In sSC), p_val 
+% [X] Per Mouse: NCells_Reduced, AverageReduction_sig (In sSC), NCells_Increased, AverageIncrease, p_val 
 % (for Opto vs No-Opto), vecMean_mean, vecSEM_mean (HOW? -> Currently SEM over means), 
 % vecBinCenters, n_trials, n_clusters
-
-% OUTPUT -> Currently, Output is a struct w/ output data for a single 
-% mouse. Ultimately want this to be a cell array/table where each entry 
-% corresponds to an individual subject/mouse
 % 
 % For each SubjectN = Cell? Table? Struct?;
-%   [] Struct 1: Single-Unit (Per Cluster)
-%       [] Find a way to pre-allocate vector size
+%   [X] Struct 1: Single-Unit (Per Cluster)
 %       [] ULTIMATELY alignment data -> Need to know whether clusters are
 %       located in sSC
 %   [X] Struct 2: Overall
   
-% [] LATER -> Struct 3 (Overall over ALL mice included in analysis)
-%       Should report: 1. Number of mice 2. Total number of
-%       neurons/clusters included
-%       [] Should this be mean of means per mouse or per cluster?
+% [X] Struct 3 (Overall over ALL mice included in analysis)
 
 
 %% Load in Data
 
 % Load in Correct Data File
+[FileNames, PathName] = uigetfile('*.mat', 'MultiSelect', 'on');
 % DataDirectory = dir(fullfile("C:\Software and Code\Analysis-GAD2\example_data_scripts\*.mat"));
 % FileNames = {DataDirectory.name};
 % sAP_Files = FileNames(endsWith(FileNames, '_Synthesis.mat'));
 % load(fullfile(DataDirectory(1).folder,sAP_Files{1})); % [] This currently just grabs the first folder in DataFile. May want to change this to be more specific later!
 
-%%
-% NOTE: SCRIPT IS CURRENTLY WRITTEN TO HANDLE ONE MOUSE AT A TIME, CHANGE
-% THIS TO LOOP ONCE BASIC ANALYSIS HAS BEEN IMPLEMENTED
+%% Set Up Struct
+
+DataOut.AllMice.ClusterData = cell2table(cell(0,17), 'VariableNames', {'Subject', 'RecDate', 'ClusterN', 'zeta_p', 'SpontRate', 'ER_OptoOff', ...
+    'ER_OptoOn', 'SE_OptoOff', 'SE_OptoOn', 'PctChange', 'p_val', 'PSTHMean_Off', ...
+    'PSTHSEM_Off', 'PSTHBinCenters_Off', 'PSTHMean_On', 'PSTHSEM_On', ...
+    'PSTHBinCenters_On'});
+
+%% Start Loop
+
+if isa(FileNames, 'cell')
+    NumFiles = numel(FileNames);
+else
+    NumFiles = 1;
+end
+
+for idx = 1:NumFiles % For each recording
+if isa(FileNames, 'cell')
+    load(fullfile(PathName, FileNames{idx}));
+else
+    load(fullfile(PathName, FileNames));
+end
 
 % Get stimulus info
 sAP = sSynthData;
@@ -50,11 +61,11 @@ vecLaserOn = structEP.vecOptoOn; % Logical array: Tells whether opto was on for 
 %% Prepare Output Table
 
 % Info to Have Per Mouse: 
+RecData.Subject = sAP.sJson.subject;
+RecData.SubjectType = sAP.sJson.subjecttype;
 
-DataOut.Subject = sAP.sJson.subject;
-
-% Table Headers: ClusterN, zeta, SpontRate, EvokedRate_OptoOn,
-% EvokedRate_OptoOff, SEM_On, SEM_Off
+% Table Headers: ClusterN, zeta_p, SpontRate, EvokedRate_OptoOn,
+% EvokedRate_OptoOff, SEM_On, SEM_Off, PctChange, p_val, PSTH stuff ...
 ClusterN = [];
 zeta_p = [];
 SpontRate = [];
@@ -64,12 +75,12 @@ SE_OptoOn = [];
 SE_OptoOff = [];
 PctChange = [];
 p_val = [];
-PSTHMean_On = [];
-PSTHSEM_On = [];
-PSTHBinCenters_On = [];
 PSTHMean_Off = [];
 PSTHSEM_Off = [];
 PSTHBinCenters_Off = [];
+PSTHMean_On = [];
+PSTHSEM_On = [];
+PSTHBinCenters_On = [];
 
 %% Analysis
 
@@ -92,7 +103,7 @@ sOptions = -1;
 % -- Start Loop --
 for intCh = 1:length(sAP.sCluster) % For each cluster:
     vecSpikes = sAP.sCluster(intCh).SpikeTimes;
-    dblZetaP = getZeta(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto -> Visually responsive neurons
+    dblZetaP = zetatest(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto -> Visually responsive neurons
     if dblZetaP < 0.01 %&& sCluster(intCh).Violations1ms < 0.25 && abs(sCluster(intCh).NonStationarity) < 0.25 % ONLY plots figures for units that are VISUALLY RESPONSIVE (according to Zeta)
         % -- Analysis pt 1.  Opto vs No-Opto --
         sCounts_Opto = zeros(numel(vecStimOnSecs),2);
@@ -121,10 +132,7 @@ for intCh = 1:length(sAP.sCluster) % For each cluster:
         % Magnitude of Reduction per Channel
         PctChange_Cl = (EvokedRate_OptoOn - EvokedRate_OptoOff)/EvokedRate_OptoOff;
 
-        % Test: I am subtracting SpontRate from each sRate in stim period 
-        % to get EvokedRate PER TRIAL. Seems like I need this to compute
-        % Channel-wise ttest.
-        % (TALK TO ROBIN ABOUT THIS ON THURS) !!!!!!!!!!
+        % EvokedRate per Trial
         EvokedRate_OptoOn_Cl = sRate_OptoOn - SpontRate_Cl;
         EvokedRate_OptoOff_Cl = sRate_OptoOff - SpontRate_Cl;
 
@@ -133,7 +141,7 @@ for intCh = 1:length(sAP.sCluster) % For each cluster:
         
         % -- Analysis pt. 2: PSTH --
         % PSTH Laser Off
-        [vecMean_Off,vecSEM_Off,vecWindowBinCenters_Off,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(~vecLaserOn),sOptions); %FROM JORRIT'S GENERALANALYSIS repo
+        [vecMean_Off,vecSEM_Off,vecWindowBinCenters_Off,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(~vecLaserOn),sOptions);
         vecMean_Off(indExclude) = NaN;
         
         % PSTH Laser On 
@@ -159,9 +167,9 @@ for intCh = 1:length(sAP.sCluster) % For each cluster:
     else
         continue
     end
-end        
+end
 
-%% Analysis pt 3: Overall Values
+%% Analysis pt 3: Overall Values per Recording
 
 n_clusters = numel(ClusterN);
 
@@ -173,7 +181,7 @@ Overall.ER_OptoOn = mean(ER_OptoOn);
 Overall.ER_OptoOff = mean(ER_OptoOff);
 Overall.SE_OptoOn = std(ER_OptoOn, [], 1)/sqrt(n_clusters);
 Overall.SE_OptoOff = std(ER_OptoOff, [], 1)/sqrt(n_clusters);
-[~, Overall.p_val] = ttest(ER_OptoOn, ER_OptoOff, 'Alpha', 0.01); % Inclusion criteria? Only negatively modulated cells?
+[~, Overall.p_val] = ttest(ER_OptoOn, ER_OptoOff, 'Alpha', 0.01);
 
 norm = max(PSTHMean_Off,[],2);
 Overall.PSTHMean_Off_norm = mean(PSTHMean_Off./norm, 1);
@@ -190,71 +198,46 @@ Overall.n_clusters = n_clusters;
 
 %% Write Output
 
-% Write Table
-DataOut.ClusterData = table(ClusterN, zeta_p, SpontRate, ER_OptoOn, ...
-    ER_OptoOff, SE_OptoOn, SE_OptoOff, PctChange, p_val, PSTHMean_On, ...
-    PSTHSEM_On, PSTHBinCenters_On, PSTHMean_Off, PSTHSEM_Off, ...
-    PSTHBinCenters_Off);
+% Write Table (Subject)
+RecData.ClusterData = table(ClusterN, zeta_p, SpontRate, ER_OptoOff, ...
+    ER_OptoOn, SE_OptoOff, SE_OptoOn, PctChange, p_val, PSTHMean_Off, ...
+    PSTHSEM_Off, PSTHBinCenters_Off, PSTHMean_On, PSTHSEM_On, ...
+    PSTHBinCenters_On);
 
 % Overall Subject Data
-DataOut.OverallData = Overall;
+RecData.OverallData = Overall;
 
-%% Test Plots - DON'T RUN THIS DURING ANALYSIS
+% Add to DataOut
+SubjectN = table(repmat(RecData.Subject, [n_clusters 1]), 'VariableNames', {'Subject'});
+RecDate = cell2table(repmat({sAP.sJson.date}', [n_clusters 1]), 'VariableNames', {'RecDate'});
+DataOut.AllMice.ClusterData = [DataOut.AllMice.ClusterData; [SubjectN RecDate RecData.ClusterData]];
 
-DataOut.ClusterSig = DataOut.ClusterData(p_val < 0.01,:);
+RecordingName = ['m' RecData.Subject '_' sAP.sCluster(1).Rec];
+DataOut.(RecordingName) = RecData;
 
-PlotClusters = 0;
-
-if PlotClusters
-    for intCh = DataOut.ClusterSig.ClusterN'
-        row = DataOut.ClusterSig(DataOut.ClusterSig.ClusterN == intCh, :);
-        vecSpikes = sAP.sCluster(intCh).SpikeTimes;
-        figure; hold on;
-        plot(row.PSTHBinCenters_Off,row.PSTHMean_Off,'k');
-            % plot(vecWindowBinCenters,vecMean-vecSEM,'k--');
-            % plot(vecWindowBinCenters,vecMean+vecSEM,'k--');
-        plot(row.PSTHBinCenters_On,row.PSTHMean_On,'b');
-            % plot(vecWindowBinCenters,vecMean-vecSEM,'b--');
-            % plot(vecWindowBinCenters,vecMean+vecSEM,'b--');
-        
-        % title(['Channel: ' num2str(vecUnique(intCh))]);
-        title(num2str(intCh));
-        xline(0,'r--')
-        ylabel('Spiking Rate (spks/s)')
-        xlabel('Time from stimulus onset (s)')
-        xlim([min(vecTime) max(vecTime)])
-        legend('No Opto', 'Opto');
-        fixfig;
-        drawnow;
-        hold off;
-    end
 end
 
-% Barplots
-figure; hold on;
-bar_pl = bar([Overall.ER_OptoOff Overall.ER_OptoOn]);
-dot_pl = plot([1 2],[ER_OptoOff ER_OptoOn],'-','Color',[0, 0, 0, 0.3]);
-scatter([1 2],[ER_OptoOff ER_OptoOn],'MarkerEdgeColor', [0 0 0], 'MarkerEdgeAlpha',0.5);
-bar_err = errorbar([1,2],[Overall.ER_OptoOff Overall.ER_OptoOn], [Overall.SE_OptoOff Overall.SE_OptoOn]);
-bar_err.Color = [0.8 0 0];
-bar_err.LineStyle = 'none';
-bar_err.LineWidth = 1.5;
-ylabel('Evoked Rate (spks/s)');
-xticks([1 2]);
-xticklabels({"Laser OFF", "Laser ON"});
-hold off
+ %% Overall Values
 
-% Mean Response
-figure; hold on;
-plot(DataOut.OverallData.PSTHBinCenters, DataOut.OverallData.PSTHMean_Off_norm,'k');
-plot(DataOut.OverallData.PSTHBinCenters, DataOut.OverallData.PSTHMean_On_norm,'b');
-xline(0,'r--')
-ylabel('Spiking Rate (% of Peak)')
-xlabel('Time from stimulus onset (s)')
-xlim([min(vecTime) max(vecTime)])
-legend('No Opto', 'Opto');
-fixfig;
-drawnow;
-hold off;
+n_clusters_overall = height(DataOut.AllMice.ClusterData);
 
- %% Export
+DataOut.AllMice.Overall.NMice = numel(unique(DataOut.AllMice.ClusterData(:,1)));
+DataOut.AllMice.Overall.NCells = n_clusters_overall; % Probably will need to tweak this!
+DataOut.AllMice.Overall.NCells_Reduced = sum((DataOut.AllMice.ClusterData.p_val < 0.01) & DataOut.AllMice.ClusterData.PctChange < 0);
+DataOut.AllMice.Overall.MeanPctReduction = mean(DataOut.AllMice.ClusterData.PctChange(DataOut.AllMice.ClusterData.PctChange < 0));
+DataOut.AllMice.Overall.NCells_Increased = sum((DataOut.AllMice.ClusterData.p_val < 0.01) & DataOut.AllMice.ClusterData.PctChange > 0);
+DataOut.AllMice.Overall.MeanPctIncrease = mean(DataOut.AllMice.ClusterData.PctChange((DataOut.AllMice.ClusterData.p_val<0.01) & (DataOut.AllMice.ClusterData.PctChange > 0)));
+DataOut.AllMice.Overall.ER_OptoOn = mean(DataOut.AllMice.ClusterData.ER_OptoOn);
+DataOut.AllMice.Overall.ER_OptoOff = mean(DataOut.AllMice.ClusterData.ER_OptoOff);
+DataOut.AllMice.Overall.SE_OptoOn = std(DataOut.AllMice.ClusterData.ER_OptoOn, [], 1)/sqrt(n_clusters_overall);
+DataOut.AllMice.Overall.SE_OptoOff = std(DataOut.AllMice.ClusterData.ER_OptoOff, [], 1)/sqrt(n_clusters_overall);
+[~, DataOut.AllMice.Overall.p_val] = ttest(DataOut.AllMice.ClusterData.ER_OptoOn, DataOut.AllMice.ClusterData.ER_OptoOff, 'Alpha', 0.01);
+
+norm = max(DataOut.AllMice.ClusterData.PSTHMean_Off,[],2);
+DataOut.AllMice.Overall.PSTHMean_Off_norm = mean(DataOut.AllMice.ClusterData.PSTHMean_Off./norm, 1);
+DataOut.AllMice.Overall.PSTHSEM_Off_norm = std(DataOut.AllMice.ClusterData.PSTHMean_Off./norm, 1)/sqrt(n_clusters_overall);
+DataOut.AllMice.Overall.PSTHMean_On_norm = mean(DataOut.AllMice.ClusterData.PSTHMean_On./norm, 1);
+DataOut.AllMice.Overall.PSTHSEM_On_norm = std(DataOut.AllMice.ClusterData.PSTHMean_On./norm, 1)/sqrt(n_clusters_overall);
+DataOut.AllMice.Overall.PSTHBinSize = 5e-3; % Binsize of PSTH
+DataOut.AllMice.Overall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
+DataOut.AllMice.Overall.PSTHBinCenters = DataOut.AllMice.ClusterData.PSTHBinCenters_On(1,:);

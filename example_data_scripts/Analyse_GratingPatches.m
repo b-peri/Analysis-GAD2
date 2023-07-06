@@ -1,17 +1,17 @@
-
-%GratingPatchesAnalysis
+%% GratingPatches Analysis
 
 %% get stimulus info
 sAP = sSynthData;
-intNumClu = length(sAP.sCluster);
-structEP = sAP.cellStim{1,2}.structEP;  
-vecStimOnSecs = structEP.vecStimOnTime;
-vecStimOffSecs = structEP.vecStimOffTime;
+intNumClu = length(sAP.sCluster); % Number of Clusters
+structEP = sAP.cellStim{1,2}.structEP; % Stimulus Info for Grating Patches (Small)
+vecStimOnSecs = structEP.vecStimOnTime; % Stimulus onset times
+vecStimOffSecs = structEP.vecStimOffTime; % Stimulus offset times
 
-%% get grid data
-vecUniqueRects = unique(structEP.vecDstRect','rows'); %unique dst rects
+%% Get grid data
+
+vecUniqueRects = unique(structEP.vecDstRect','rows'); %Unique dst rects (? Not sure what this means)
 vecUniqueStims = 1:length(vecUniqueRects);
-vecStimIdx = zeros(size(structEP.vecDstRect,2),1);
+vecStimIdx = zeros(size(structEP.vecDstRect,2),1); % Vector of zeroes (length = TrialN)
 for intStim = 1:length(vecUniqueRects)
     vecStimIdx(ismember(structEP.vecDstRect',vecUniqueRects(intStim,:),'rows')) = vecUniqueStims(intStim);
 end
