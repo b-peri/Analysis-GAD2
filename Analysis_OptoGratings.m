@@ -198,8 +198,13 @@ Overall.n_clusters = n_clusters;
 
 %% Write Output
 
+<<<<<<< HEAD
 % Write Table (Subject)
 RecData.ClusterData = table(ClusterN, zeta_p, SpontRate, ER_OptoOff, ...
+=======
+% Write Table
+DataOut.ClusterData = table(ClusterN, zeta_p, SpontRate, ER_OptoOff, ...
+>>>>>>> 318abc7aeed0c28e700205b518b47ad74517ce92
     ER_OptoOn, SE_OptoOff, SE_OptoOn, PctChange, p_val, PSTHMean_Off, ...
     PSTHSEM_Off, PSTHBinCenters_Off, PSTHMean_On, PSTHSEM_On, ...
     PSTHBinCenters_On);
@@ -207,10 +212,14 @@ RecData.ClusterData = table(ClusterN, zeta_p, SpontRate, ER_OptoOff, ...
 % Overall Subject Data
 RecData.OverallData = Overall;
 
+<<<<<<< HEAD
 % Add to DataOut
 SubjectN = table(repmat(RecData.Subject, [n_clusters 1]), 'VariableNames', {'Subject'});
 RecDate = cell2table(repmat({sAP.sJson.date}', [n_clusters 1]), 'VariableNames', {'RecDate'});
 DataOut.AllMice.ClusterData = [DataOut.AllMice.ClusterData; [SubjectN RecDate RecData.ClusterData]];
+=======
+%% Test Plots
+>>>>>>> 318abc7aeed0c28e700205b518b47ad74517ce92
 
 RecordingName = ['m' RecData.Subject '_' sAP.sCluster(1).Rec];
 DataOut.(RecordingName) = RecData;
@@ -219,7 +228,23 @@ end
 
  %% Overall Values
 
+<<<<<<< HEAD
 n_clusters_overall = height(DataOut.AllMice.ClusterData);
+=======
+% Mean Response
+figure; hold on;
+plot(DataOut.OverallData.PSTHBinCenters, DataOut.OverallData.PSTHMean_Off_norm,'k');
+plot(DataOut.OverallData.PSTHBinCenters, DataOut.OverallData.PSTHMean_On_norm,'b');
+xline(0,'r--');
+ylabel('Spiking Rate (% of Peak)');
+xlabel('Time from stimulus onset (s)');
+xlim([min(vecTime) max(vecTime)]);
+text(0.94, 0.6, sprintf('%g units', n_clusters), 'FontSize',15);
+legend('No Opto', 'Opto');
+fixfig;
+drawnow;
+hold off;
+>>>>>>> 318abc7aeed0c28e700205b518b47ad74517ce92
 
 DataOut.AllMice.Overall.NMice = numel(unique(DataOut.AllMice.ClusterData(:,1)));
 DataOut.AllMice.Overall.NCells = n_clusters_overall; % Probably will need to tweak this!
