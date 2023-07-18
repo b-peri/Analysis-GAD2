@@ -119,7 +119,8 @@ for intCh = 1:length(sAP.sCluster) % For each cluster:
         sRate_OptoOff = sRate_Opto(~vecLaserOn, 2); % Rates during stim non-Opto trials
         
         % Spontaneous Rate
-        SpontRate_Cl = mean(sCounts_Opto(:,1)); 
+        % SpontRate_Cl = mean(sCounts_Opto(:,1));
+        SpontRate_Cl = mean(sRate_Opto(:,1));
     
         % Overall Visually Evoked FRs (Channel)
         EvokedRate_OptoOn = mean(sRate_OptoOn) - SpontRate_Cl;
@@ -130,7 +131,7 @@ for intCh = 1:length(sAP.sCluster) % For each cluster:
         SEM_OptoOff = std(sRate_OptoOff, [], 1)/sqrt(n_trials);
 
         % Magnitude of Reduction per Channel
-        PctChange_Cl = (EvokedRate_OptoOn - EvokedRate_OptoOff)/EvokedRate_OptoOff;
+        PctChange_Cl = (EvokedRate_OptoOn - EvokedRate_OptoOff)/abs(EvokedRate_OptoOff);
 
         % EvokedRate per Trial
         EvokedRate_OptoOn_Cl = sRate_OptoOn - SpontRate_Cl;
@@ -158,10 +159,10 @@ for intCh = 1:length(sAP.sCluster) % For each cluster:
         SE_OptoOff = [SE_OptoOff; SEM_OptoOff];
         PctChange = [PctChange; PctChange_Cl];
         p_val = [p_val; p_val_Cl];
-        PSTHMean_On = [PSTHMean_On; vecMean_On];
+        PSTHMean_On = [PSTHMean_On; vecMean_On - SpontRate_Cl]; % Note that all PSTH values are now baseline-subtracted!
         PSTHSEM_On = [PSTHSEM_On; vecSEM_On];
         PSTHBinCenters_On = [PSTHBinCenters_On; vecWindowBinCenters_On];
-        PSTHMean_Off = [PSTHMean_Off; vecMean_Off];
+        PSTHMean_Off = [PSTHMean_Off; vecMean_Off - SpontRate_Cl];
         PSTHSEM_Off = [PSTHSEM_Off; vecSEM_Off];
         PSTHBinCenters_Off = [PSTHBinCenters_Off; vecWindowBinCenters_Off];
     else
@@ -173,27 +174,35 @@ end
 
 n_clusters = numel(ClusterN);
 
-Overall.NCells_Reduced = sum((p_val < 0.01) & PctChange < 0);
-Overall.MeanPctReduction = mean(PctChange(PctChange < 0));
-Overall.NCells_Increased = sum((p_val < 0.01) & PctChange > 0);
-Overall.MeanPctIncrease = mean(PctChange((p_val<0.01) & (PctChange > 0)));
-Overall.ER_OptoOn = mean(ER_OptoOn);
-Overall.ER_OptoOff = mean(ER_OptoOff);
-Overall.SE_OptoOn = std(ER_OptoOn, [], 1)/sqrt(n_clusters);
-Overall.SE_OptoOff = std(ER_OptoOff, [], 1)/sqrt(n_clusters);
-[~, Overall.p_val] = ttest(ER_OptoOn, ER_OptoOff, 'Alpha', 0.01);
+RecOverall.NCells_Reduced = sum((p_val < 0.01) & PctChange < 0);
+RecOverall.MeanPctReduction = mean(PctChange(PctChange < 0)); % 
+RecOverall.NCells_Increased = sum((p_val < 0.01) & PctChange > 0);
+RecOverall.MeanPctIncrease = mean(PctChange((p_val<0.01) & (PctChange > 0)));
+RecOverall.ER_OptoOn = mean(ER_OptoOn);
+RecOverall.ER_OptoOff = mean(ER_OptoOff);
+RecOverall.SE_OptoOn = std(ER_OptoOn, [], 1)/sqrt(n_clusters);
+RecOverall.SE_OptoOff = std(ER_OptoOff, [], 1)/sqrt(n_clusters);
+[~, RecOverall.p_val] = ttest(ER_OptoOn, ER_OptoOff, 'Alpha', 0.01);
 
+% Non-Normalized PSTH Values
 norm = max(PSTHMean_Off,[],2);
-Overall.PSTHMean_Off_norm = mean(PSTHMean_Off./norm, 1);
-Overall.PSTHSEM_Off_norm = std(PSTHMean_Off./norm, 1)/sqrt(n_clusters);
-Overall.PSTHMean_On_norm = mean(PSTHMean_On./norm, 1);
-Overall.PSTHSEM_On_norm = std(PSTHMean_On./norm, 1)/sqrt(n_clusters);
-Overall.PSTHBinSize = 5e-3; % Binsize of PSTH
-Overall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
-Overall.PSTHBinCenters = PSTHBinCenters_On(1,:);
+RecOverall.PSTHMean_Off = mean(PSTHMean_Off./norm, 1);
+RecOverall.PSTHSEM_Off = std(PSTHMean_Off./norm, 1)/sqrt(n_clusters);
+RecOverall.PSTHMean_On = mean(PSTHMean_On./norm, 1);
+RecOverall.PSTHSEM_On = std(PSTHMean_On./norm, 1)/sqrt(n_clusters);
 
-Overall.n_trials = n_trials;
-Overall.n_clusters = n_clusters;
+%Normalized PSTH Values
+norm = max(PSTHMean_Off,[],2);
+RecOverall.PSTHMean_Off_norm = mean(PSTHMean_Off./norm, 1);
+RecOverall.PSTHSEM_Off_norm = std(PSTHMean_Off./norm, 1)/sqrt(n_clusters);
+RecOverall.PSTHMean_On_norm = mean(PSTHMean_On./norm, 1);
+RecOverall.PSTHSEM_On_norm = std(PSTHMean_On./norm, 1)/sqrt(n_clusters);
+RecOverall.PSTHBinSize = 5e-3; % Binsize of PSTH
+RecOverall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
+RecOverall.PSTHBinCenters = PSTHBinCenters_On(1,:);
+
+RecOverall.n_trials = n_trials;
+RecOverall.n_clusters = n_clusters;
 
 
 %% Write Output
@@ -205,39 +214,64 @@ RecData.ClusterData = table(ClusterN, zeta_p, SpontRate, ER_OptoOff, ...
     PSTHBinCenters_On);
 
 % Overall Subject Data
-RecData.OverallData = Overall;
+RecData.OverallData = RecOverall;
 
 % Add to DataOut
 SubjectN = table(repmat(RecData.Subject, [n_clusters 1]), 'VariableNames', {'Subject'});
 RecDate = cell2table(repmat({sAP.sJson.date}', [n_clusters 1]), 'VariableNames', {'RecDate'});
+% ADD CHANNEL DEPTH!
 DataOut.AllMice.ClusterData = [DataOut.AllMice.ClusterData; [SubjectN RecDate RecData.ClusterData]];
 
-RecordingName = ['m' RecData.Subject '_' sAP.sCluster(1).Rec];
+RecordingName = [replace(sAP.sJson.experiment(1:end-6),'-','_')];
 DataOut.(RecordingName) = RecData;
 
 end
 
  %% Overall Values
 
+AllM_Overall = struct;
+
 n_clusters_overall = height(DataOut.AllMice.ClusterData);
+AllM_Overall.NMice = numel(unique(DataOut.AllMice.ClusterData(:,1)));
+AllM_Overall.NRecs = numel(fieldnames(DataOut)) - 1;
+AllM_Overall.NCells = n_clusters_overall; % Probably will need to tweak this!
+AllM_Overall.NCells_Reduced = sum((DataOut.AllMice.ClusterData.p_val < 0.01) & DataOut.AllMice.ClusterData.PctChange < 0);
+AllM_Overall.MeanPctReduction = mean(DataOut.AllMice.ClusterData.PctChange(DataOut.AllMice.ClusterData.PctChange < 0));
+AllM_Overall.NCells_Increased = sum((DataOut.AllMice.ClusterData.p_val < 0.01) & DataOut.AllMice.ClusterData.PctChange > 0);
+AllM_Overall.MeanPctIncrease = mean(DataOut.AllMice.ClusterData.PctChange((DataOut.AllMice.ClusterData.p_val<0.01) & (DataOut.AllMice.ClusterData.PctChange > 0)));
+AllM_Overall.ER_OptoOn = mean(DataOut.AllMice.ClusterData.ER_OptoOn);
+AllM_Overall.ER_OptoOff = mean(DataOut.AllMice.ClusterData.ER_OptoOff);
+AllM_Overall.SE_OptoOn = std(DataOut.AllMice.ClusterData.ER_OptoOn, [], 1)/sqrt(n_clusters_overall);
+AllM_Overall.SE_OptoOff = std(DataOut.AllMice.ClusterData.ER_OptoOff, [], 1)/sqrt(n_clusters_overall);
+[~, AllM_Overall.p_val] = ttest(DataOut.AllMice.ClusterData.ER_OptoOn, DataOut.AllMice.ClusterData.ER_OptoOff, 'Alpha', 0.01);
 
-DataOut.AllMice.Overall.NMice = numel(unique(DataOut.AllMice.ClusterData(:,1)));
-DataOut.AllMice.Overall.NCells = n_clusters_overall; % Probably will need to tweak this!
-DataOut.AllMice.Overall.NCells_Reduced = sum((DataOut.AllMice.ClusterData.p_val < 0.01) & DataOut.AllMice.ClusterData.PctChange < 0);
-DataOut.AllMice.Overall.MeanPctReduction = mean(DataOut.AllMice.ClusterData.PctChange(DataOut.AllMice.ClusterData.PctChange < 0));
-DataOut.AllMice.Overall.NCells_Increased = sum((DataOut.AllMice.ClusterData.p_val < 0.01) & DataOut.AllMice.ClusterData.PctChange > 0);
-DataOut.AllMice.Overall.MeanPctIncrease = mean(DataOut.AllMice.ClusterData.PctChange((DataOut.AllMice.ClusterData.p_val<0.01) & (DataOut.AllMice.ClusterData.PctChange > 0)));
-DataOut.AllMice.Overall.ER_OptoOn = mean(DataOut.AllMice.ClusterData.ER_OptoOn);
-DataOut.AllMice.Overall.ER_OptoOff = mean(DataOut.AllMice.ClusterData.ER_OptoOff);
-DataOut.AllMice.Overall.SE_OptoOn = std(DataOut.AllMice.ClusterData.ER_OptoOn, [], 1)/sqrt(n_clusters_overall);
-DataOut.AllMice.Overall.SE_OptoOff = std(DataOut.AllMice.ClusterData.ER_OptoOff, [], 1)/sqrt(n_clusters_overall);
-[~, DataOut.AllMice.Overall.p_val] = ttest(DataOut.AllMice.ClusterData.ER_OptoOn, DataOut.AllMice.ClusterData.ER_OptoOff, 'Alpha', 0.01);
+% Non-Normalized 
+AllM_Overall.PSTHMean_Off = mean(DataOut.AllMice.ClusterData.PSTHMean_Off, 1);
+AllM_Overall.PSTHSEM_Off = std(DataOut.AllMice.ClusterData.PSTHMean_Off, 1)/sqrt(n_clusters_overall);
+AllM_Overall.PSTHMean_On = mean(DataOut.AllMice.ClusterData.PSTHMean_On, 1);
+AllM_Overall.PSTHSEM_On = std(DataOut.AllMice.ClusterData.PSTHMean_On, 1)/sqrt(n_clusters_overall);
 
+% Normalized Overall PSTH Values
 norm = max(DataOut.AllMice.ClusterData.PSTHMean_Off,[],2);
-DataOut.AllMice.Overall.PSTHMean_Off_norm = mean(DataOut.AllMice.ClusterData.PSTHMean_Off./norm, 1);
-DataOut.AllMice.Overall.PSTHSEM_Off_norm = std(DataOut.AllMice.ClusterData.PSTHMean_Off./norm, 1)/sqrt(n_clusters_overall);
-DataOut.AllMice.Overall.PSTHMean_On_norm = mean(DataOut.AllMice.ClusterData.PSTHMean_On./norm, 1);
-DataOut.AllMice.Overall.PSTHSEM_On_norm = std(DataOut.AllMice.ClusterData.PSTHMean_On./norm, 1)/sqrt(n_clusters_overall);
-DataOut.AllMice.Overall.PSTHBinSize = 5e-3; % Binsize of PSTH
-DataOut.AllMice.Overall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
-DataOut.AllMice.Overall.PSTHBinCenters = DataOut.AllMice.ClusterData.PSTHBinCenters_On(1,:);
+AllM_Overall.PSTHMean_Off_norm = mean(DataOut.AllMice.ClusterData.PSTHMean_Off./norm, 1);
+AllM_Overall.PSTHSEM_Off_norm = std(DataOut.AllMice.ClusterData.PSTHMean_Off./norm, 1)/sqrt(n_clusters_overall);
+AllM_Overall.PSTHMean_On_norm = mean(DataOut.AllMice.ClusterData.PSTHMean_On./norm, 1);
+AllM_Overall.PSTHSEM_On_norm = std(DataOut.AllMice.ClusterData.PSTHMean_On./norm, 1)/sqrt(n_clusters_overall);
+
+AllM_Overall.PSTHBinSize = 5e-3; % Binsize of PSTH
+AllM_Overall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
+AllM_Overall.PSTHBinCenters = DataOut.AllMice.ClusterData.PSTHBinCenters_On(1,:);
+
+DataOut.AllMice.ClusterDataUp = DataOut.AllMice.ClusterData((DataOut.AllMice.ClusterData.p_val < 0.01) & (DataOut.AllMice.ClusterData.PctChange > 0),:);
+DataOut.AllMice.ClusterDataDown = DataOut.AllMice.ClusterData((DataOut.AllMice.ClusterData.p_val < 0.01) & (DataOut.AllMice.ClusterData.PctChange < 0),:);
+DataOut.AllMice.ClusterDataNonSig = DataOut.AllMice.ClusterData(~(DataOut.AllMice.ClusterData.p_val < 0.01),:);
+
+DataOut.AllMice.Overall = AllM_Overall;
+
+%% Save Output
+if any(startsWith(string(fieldnames(DataOut)),'Rec7'))
+    SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2' '.mat'];
+elseif any(startsWith(string(fieldnames(DataOut)),'Rec8'))
+    SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_Control' '.mat'];
+end
+save(SaveFile, 'DataOut');
