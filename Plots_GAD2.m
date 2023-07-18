@@ -1,7 +1,7 @@
 %% Figure 1: Plots Opto Gratings
 Data = DataOut.AllMice;
 
-%Example Neuron Plots
+%% Example Neuron Plots
 NumPlots_Down = 3 % Number of Downregulated Example Cells to Plot
 NumPlots_Up = 1 % Number of Upregulated Example Cells to Plot
 
@@ -13,7 +13,7 @@ for n = 1:NumPlots_Down % Should probably normalize
     data_tmp = Data.ClusterDataDown(i,:);
     plot(data_tmp.PSTHBinCenters_Off, data_tmp.PSTHMean_Off, 'k');
     plot(data_tmp.PSTHBinCenters_On, data_tmp.PSTHMean_On, 'b');
-    title(["Cl: " + string(data_tmp.ClusterN)])
+    title(["Cl: " + string(data_tmp.ClusterN)]);
     xline(0,'r--');
     ylabel('Normalized Response');
     xlabel('Time from stimulus onset (s)');
@@ -29,7 +29,7 @@ for i = ClIdx_Up % Should probably normalize
     figure; hold on;
     plot(data_tmp.PSTHBinCenters_Off, data_tmp.PSTHMean_Off, 'k');
     plot(data_tmp.PSTHBinCenters_On, data_tmp.PSTHMean_On, 'b');
-    title(["Cl: " + string(data_tmp.ClusterN)])
+    title(["Cl: " + string(data_tmp.ClusterN)]);
     xline(0,'r--');
     ylabel('Normalized Response');
     xlabel('Time from stimulus onset (s)');
@@ -38,18 +38,23 @@ for i = ClIdx_Up % Should probably normalize
 end
 hold off
 
+%% PSTH
+
 % Mean Response Overall
 figure; hold on;
-plot(Data.Overall.PSTHBinCenters, Data.Overall.PSTHMean_Off_norm,'k');
-plot(Data.Overall.PSTHBinCenters, Data.Overall.PSTHMean_On_norm,'b');
+% plot(Data.Overall.PSTHBinCenters, Data.Overall.PSTHMean_Off_norm,'k');
+% plot(Data.Overall.PSTHBinCenters, Data.Overall.PSTHMean_On_norm,'b');
+shadedErrorBar(Data.Overall.PSTHBinCenters, Data.Overall.PSTHMean_Off_norm, Data.Overall.PSTHSEM_Off_norm, 'lineProps', 'k');
+shadedErrorBar(Data.Overall.PSTHBinCenters, Data.Overall.PSTHMean_On_norm, Data.Overall.PSTHSEM_On_norm, 'lineProps', 'b');
 xline(0,'r--');
 ylabel('Normalized Response');
 xlabel('Time from stimulus onset (s)');
 xlim([min(Data.Overall.PSTHtime) max(Data.Overall.PSTHtime)]);
-ylim([-0.1 1]);
+ylim([-0.1 0.8]);
 yline(0);
 text(0.94, 0.62, sprintf('%g units', Data.Overall.NCells), 'FontSize',15);
 legend('No Opto', 'Opto');
+title('Mean Response Overall');
 fixfig;
 drawnow;
 hold off;
@@ -57,8 +62,12 @@ hold off;
 % Mean Response Upregulated Cells -> Normalized
 norm_up = max(Data.ClusterDataUp.PSTHMean_Off,[],2);
 figure; hold on;
-plot(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_Off./norm_up, 1),'k');
-plot(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_On./norm_up, 1),'b');
+% plot(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_Off./norm_up, 1),'k');
+% plot(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_On./norm_up, 1),'b');
+shadedErrorBar(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_Off./norm_up, 1), ...
+    std(Data.ClusterDataUp.PSTHMean_Off./norm_up)/sqrt(Data.Overall.NCells_Increased), 'lineProps', 'k');
+shadedErrorBar(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_On./norm_up, 1), ..., 'lineProps', 'b');
+    std(Data.ClusterDataUp.PSTHMean_On./norm_up)/sqrt(Data.Overall.NCells_Increased), 'lineProps', 'b');
 xline(0,'r--');
 ylabel('Normalized Response');
 xlabel('Time from stimulus onset (s)');
@@ -75,10 +84,14 @@ hold off;
 % Mean Response Downregulated Cells
 norm_down = max(Data.ClusterDataDown.PSTHMean_Off,[],2);
 figure; hold on;
-plot(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataDown.PSTHMean_Off./norm_down, 1),'k');
-plot(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataDown.PSTHMean_On./norm_down, 1),'b');
+% plot(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataDown.PSTHMean_Off./norm_down, 1),'k');
+% plot(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataDown.PSTHMean_On./norm_down, 1),'b');
+shadedErrorBar(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataDown.PSTHMean_Off./norm_down, 1), ...
+    std(Data.ClusterDataDown.PSTHMean_Off./norm_down)/sqrt(Data.Overall.NCells_Reduced), 'lineProps', 'k');
+shadedErrorBar(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataDown.PSTHMean_On./norm_down, 1), ...
+    std(Data.ClusterDataDown.PSTHMean_On./norm_down)/sqrt(Data.Overall.NCells_Reduced), 'lineProps', 'b');
 xline(0,'r--');
-ylabel('Spiking Rate (% of Peak)');
+ylabel('Normalized Response');
 xlabel('Time from stimulus onset (s)');
 xlim([min(Data.Overall.PSTHtime) max(Data.Overall.PSTHtime)]);
 % ylim([-0.1 1]);
