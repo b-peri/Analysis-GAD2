@@ -11,7 +11,7 @@
 
 %% Set Up Struct
 
-DataOut.AllMice.ClusterData = cell2table(cell(0,17), 'VariableNames', {'Subject', 'RecDate', 'ClusterN', 'zeta_p', 'SpontRate', 'ER_OptoOff', ...
+DataOut.AllMice.ClusterData = cell2table(cell(0,18), 'VariableNames', {'Subject', 'RecDate', 'ClusterN', 'zeta_p', 'Area', 'SpontRate', 'ER_OptoOff', ...
     'ER_OptoOn', 'SE_OptoOff', 'SE_OptoOn', 'PctChange', 'p_val', 'PSTHMean_Off', ...
     'PSTHSEM_Off', 'PSTHBinCenters_Off', 'PSTHMean_On', 'PSTHSEM_On', ...
     'PSTHBinCenters_On'});
@@ -88,7 +88,7 @@ sOptions = -1;
 for intCh = 1:length(sAP.sCluster) % For each cluster:
     vecSpikes = sAP.sCluster(intCh).SpikeTimes;
     dblZetaP = zetatest(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto -> Visually responsive neurons
-    if dblZetaP < 0.01 && any(strcmp(sAP.sCluster(intCh).Area, vecROI)) %&& sCluster(intCh).Violations1ms < 0.25 && abs(sCluster(intCh).NonStationarity) < 0.25
+    if dblZetaP < 0.01 && ismember(sAP.sCluster(intCh).Area, vecROI) %&& sCluster(intCh).Violations1ms < 0.25 && abs(sCluster(intCh).NonStationarity) < 0.25
         % -- Analysis pt 1.  Opto vs No-Opto --
         sCounts_Opto = zeros(numel(vecStimOnSecs),2);
         for intTrial=1:n_trials
@@ -191,7 +191,7 @@ RecOverall.PSTHBinCenters = PSTHBinCenters_On(1,:);
 %% Write Output
 
 % Write Table (Subject)
-RecData.ClusterData = table(ClusterN, zeta_p, SpontRate, ER_OptoOff, ...
+RecData.ClusterData = table(ClusterN, zeta_p, Area, SpontRate, ER_OptoOff, ...
     ER_OptoOn, SE_OptoOff, SE_OptoOn, PctChange, p_val, PSTHMean_Off, ...
     PSTHSEM_Off, PSTHBinCenters_Off, PSTHMean_On, PSTHSEM_On, ...
     PSTHBinCenters_On);
@@ -258,3 +258,6 @@ DataOut.AllMice.Overall = AllM_Overall;
 %     SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_Control' '.mat'];
 % end
 % save(SaveFile, 'DataOut');
+
+SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2_Filtered' '.mat'];
+save(SaveFile, 'DataOut');
