@@ -1,8 +1,7 @@
 %% OptoGratings Analysis
 
 % To-DO:
-%   [] Update exclusion window to cut out laser artefact
-
+%   [] Update exclusion window to cut out laser artefact (excl. between 0.045 - 0.015)
 
 %% Load in Data
 
@@ -11,7 +10,7 @@
 
 %% Set Up Struct
 
-DataOut.AllMice.ClusterData = cell2table(cell(0,18), 'VariableNames', {'Subject', 'RecDate', 'ClusterN', 'zeta_p', 'Area', 'SpontRate', 'ER_OptoOff', ...
+DataOut_OG.AllMice.ClusterData = cell2table(cell(0,18), 'VariableNames', {'Subject', 'RecDate', 'ClusterN', 'zeta_p', 'Area', 'SpontRate', 'ER_OptoOff', ...
     'ER_OptoOn', 'SE_OptoOff', 'SE_OptoOn', 'PctChange', 'p_val', 'PSTHMean_Off', ...
     'PSTHSEM_Off', 'PSTHBinCenters_Off', 'PSTHMean_On', 'PSTHSEM_On', ...
     'PSTHBinCenters_On'});
@@ -67,6 +66,8 @@ Area = [];
 
 %% Analysis
 
+vecROI = ["Superior colliculus zonal layer" "Superior colliculus superficial gray layer" "Superior colliculus optic layer"];
+
 % -- Prep Analysis pt 1. --
 % Spontaneous Rate = Mean rate in -1s - -100ms before stim onset
 % Visually Evoked Rate = Mean rate in 10-250ms after stim onset - Spontaneous Rate
@@ -74,7 +75,6 @@ BinEdge = [-1 -0.1 0.01 0.250]; % Bin edges for Spike Counting w/ Histcounts
 binDur = [BinEdge(2) - BinEdge(1), BinEdge(4) - BinEdge(3)]; % Bin Duration [Spontaneous, Evoked] -> Divisor when calculating Firing Rate later (Spikes/Period)
 ExclWindowSRate = [vecStimOnSecs'-1 vecStimOnSecs'-0.1]; % Excl. 100ms before stimulus onset -> Remove artefact
 n_trials = numel(vecStimOnSecs); % Number of Trials
-vecROI = ["Superior colliculus zonal layer" "Superior colliculus superficial gray layer" "Superior colliculus optic layer"];
 
 % -- Prep Analysis pt 2. --
 dblBinDur = 5e-3; % Binsize of PSTH
@@ -203,10 +203,10 @@ RecData.OverallData = RecOverall;
 SubjectN = table(repmat(RecData.Subject, [n_clusters 1]), 'VariableNames', {'Subject'});
 RecDate = cell2table(repmat({sAP.sJson.date}', [n_clusters 1]), 'VariableNames', {'RecDate'});
 % ADD CHANNEL DEPTH!
-DataOut.AllMice.ClusterData = [DataOut.AllMice.ClusterData; [SubjectN RecDate RecData.ClusterData]];
+DataOut_OG.AllMice.ClusterData = [DataOut_OG.AllMice.ClusterData; [SubjectN RecDate RecData.ClusterData]];
 
 RecordingName = [replace(sAP.sJson.experiment(1:end-6),'-','_')];
-DataOut.(RecordingName) = RecData;
+DataOut_OG.(RecordingName) = RecData;
 
 end
 
@@ -214,42 +214,42 @@ end
 
 AllM_Overall = struct;
 
-n_clusters_overall = height(DataOut.AllMice.ClusterData);
-AllM_Overall.NMice = numel(unique(DataOut.AllMice.ClusterData(:,1)));
-AllM_Overall.NRecs = numel(fieldnames(DataOut)) - 1;
+n_clusters_overall = height(DataOut_OG.AllMice.ClusterData);
+AllM_Overall.NMice = numel(unique(DataOut_OG.AllMice.ClusterData(:,1)));
+AllM_Overall.NRecs = numel(fieldnames(DataOut_OG)) - 1;
 AllM_Overall.NCells = n_clusters_overall; % Probably will need to tweak this!
-AllM_Overall.NCells_Reduced = sum((DataOut.AllMice.ClusterData.p_val < 0.01) & DataOut.AllMice.ClusterData.PctChange < 0);
-AllM_Overall.MeanPctReduction = mean(DataOut.AllMice.ClusterData.PctChange(DataOut.AllMice.ClusterData.PctChange < 0));
-AllM_Overall.NCells_Increased = sum((DataOut.AllMice.ClusterData.p_val < 0.01) & DataOut.AllMice.ClusterData.PctChange > 0);
-AllM_Overall.MeanPctIncrease = mean(DataOut.AllMice.ClusterData.PctChange((DataOut.AllMice.ClusterData.p_val<0.01) & (DataOut.AllMice.ClusterData.PctChange > 0)));
-AllM_Overall.ER_OptoOn = mean(DataOut.AllMice.ClusterData.ER_OptoOn);
-AllM_Overall.ER_OptoOff = mean(DataOut.AllMice.ClusterData.ER_OptoOff);
-AllM_Overall.SE_OptoOn = std(DataOut.AllMice.ClusterData.ER_OptoOn, [], 1)/sqrt(n_clusters_overall);
-AllM_Overall.SE_OptoOff = std(DataOut.AllMice.ClusterData.ER_OptoOff, [], 1)/sqrt(n_clusters_overall);
-[~, AllM_Overall.p_val] = ttest(DataOut.AllMice.ClusterData.ER_OptoOn, DataOut.AllMice.ClusterData.ER_OptoOff, 'Alpha', 0.01);
+AllM_Overall.NCells_Reduced = sum((DataOut_OG.AllMice.ClusterData.p_val < 0.01) & DataOut_OG.AllMice.ClusterData.PctChange < 0);
+AllM_Overall.MeanPctReduction = mean(DataOut_OG.AllMice.ClusterData.PctChange(DataOut_OG.AllMice.ClusterData.PctChange < 0));
+AllM_Overall.NCells_Increased = sum((DataOut_OG.AllMice.ClusterData.p_val < 0.01) & DataOut_OG.AllMice.ClusterData.PctChange > 0);
+AllM_Overall.MeanPctIncrease = mean(DataOut_OG.AllMice.ClusterData.PctChange((DataOut_OG.AllMice.ClusterData.p_val<0.01) & (DataOut_OG.AllMice.ClusterData.PctChange > 0)));
+AllM_Overall.ER_OptoOn = mean(DataOut_OG.AllMice.ClusterData.ER_OptoOn);
+AllM_Overall.ER_OptoOff = mean(DataOut_OG.AllMice.ClusterData.ER_OptoOff);
+AllM_Overall.SE_OptoOn = std(DataOut_OG.AllMice.ClusterData.ER_OptoOn, [], 1)/sqrt(n_clusters_overall);
+AllM_Overall.SE_OptoOff = std(DataOut_OG.AllMice.ClusterData.ER_OptoOff, [], 1)/sqrt(n_clusters_overall);
+[~, AllM_Overall.p_val] = ttest(DataOut_OG.AllMice.ClusterData.ER_OptoOn, DataOut_OG.AllMice.ClusterData.ER_OptoOff, 'Alpha', 0.01);
 
 % Non-Normalized 
-AllM_Overall.PSTHMean_Off = mean(DataOut.AllMice.ClusterData.PSTHMean_Off, 1);
-AllM_Overall.PSTHSEM_Off = std(DataOut.AllMice.ClusterData.PSTHMean_Off, 1)/sqrt(n_clusters_overall);
-AllM_Overall.PSTHMean_On = mean(DataOut.AllMice.ClusterData.PSTHMean_On, 1);
-AllM_Overall.PSTHSEM_On = std(DataOut.AllMice.ClusterData.PSTHMean_On, 1)/sqrt(n_clusters_overall);
+AllM_Overall.PSTHMean_Off = mean(DataOut_OG.AllMice.ClusterData.PSTHMean_Off, 1);
+AllM_Overall.PSTHSEM_Off = std(DataOut_OG.AllMice.ClusterData.PSTHMean_Off, 1)/sqrt(n_clusters_overall);
+AllM_Overall.PSTHMean_On = mean(DataOut_OG.AllMice.ClusterData.PSTHMean_On, 1);
+AllM_Overall.PSTHSEM_On = std(DataOut_OG.AllMice.ClusterData.PSTHMean_On, 1)/sqrt(n_clusters_overall);
 
 % Normalized Overall PSTH Values
-norm = max(DataOut.AllMice.ClusterData.PSTHMean_Off,[],2);
-AllM_Overall.PSTHMean_Off_norm = mean(DataOut.AllMice.ClusterData.PSTHMean_Off./norm, 1);
-AllM_Overall.PSTHSEM_Off_norm = std(DataOut.AllMice.ClusterData.PSTHMean_Off./norm, 1)/sqrt(n_clusters_overall);
-AllM_Overall.PSTHMean_On_norm = mean(DataOut.AllMice.ClusterData.PSTHMean_On./norm, 1);
-AllM_Overall.PSTHSEM_On_norm = std(DataOut.AllMice.ClusterData.PSTHMean_On./norm, 1)/sqrt(n_clusters_overall);
+norm = max(DataOut_OG.AllMice.ClusterData.PSTHMean_Off,[],2);
+AllM_Overall.PSTHMean_Off_norm = mean(DataOut_OG.AllMice.ClusterData.PSTHMean_Off./norm, 1);
+AllM_Overall.PSTHSEM_Off_norm = std(DataOut_OG.AllMice.ClusterData.PSTHMean_Off./norm, 1)/sqrt(n_clusters_overall);
+AllM_Overall.PSTHMean_On_norm = mean(DataOut_OG.AllMice.ClusterData.PSTHMean_On./norm, 1);
+AllM_Overall.PSTHSEM_On_norm = std(DataOut_OG.AllMice.ClusterData.PSTHMean_On./norm, 1)/sqrt(n_clusters_overall);
 
 AllM_Overall.PSTHBinSize = 5e-3; % Binsize of PSTH
 AllM_Overall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
-AllM_Overall.PSTHBinCenters = DataOut.AllMice.ClusterData.PSTHBinCenters_On(1,:);
+AllM_Overall.PSTHBinCenters = DataOut_OG.AllMice.ClusterData.PSTHBinCenters_On(1,:);
 
-DataOut.AllMice.ClusterDataUp = DataOut.AllMice.ClusterData((DataOut.AllMice.ClusterData.p_val < 0.01) & (DataOut.AllMice.ClusterData.PctChange > 0),:);
-DataOut.AllMice.ClusterDataDown = DataOut.AllMice.ClusterData((DataOut.AllMice.ClusterData.p_val < 0.01) & (DataOut.AllMice.ClusterData.PctChange < 0),:);
-DataOut.AllMice.ClusterDataNonSig = DataOut.AllMice.ClusterData(~(DataOut.AllMice.ClusterData.p_val < 0.01),:);
+DataOut_OG.AllMice.ClusterDataUp = DataOut_OG.AllMice.ClusterData((DataOut_OG.AllMice.ClusterData.p_val < 0.01) & (DataOut_OG.AllMice.ClusterData.PctChange > 0),:);
+DataOut_OG.AllMice.ClusterDataDown = DataOut_OG.AllMice.ClusterData((DataOut_OG.AllMice.ClusterData.p_val < 0.01) & (DataOut_OG.AllMice.ClusterData.PctChange < 0),:);
+DataOut_OG.AllMice.ClusterDataNonSig = DataOut_OG.AllMice.ClusterData(~(DataOut_OG.AllMice.ClusterData.p_val < 0.01),:);
 
-DataOut.AllMice.Overall = AllM_Overall;
+DataOut_OG.AllMice.Overall = AllM_Overall;
 
 %% Save Output
 % if any(startsWith(string(fieldnames(DataOut)),'Rec7'))
@@ -260,4 +260,4 @@ DataOut.AllMice.Overall = AllM_Overall;
 % save(SaveFile, 'DataOut');
 
 SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2_Filtered' '.mat'];
-save(SaveFile, 'DataOut');
+save(SaveFile, 'DataOut_OG');

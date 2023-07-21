@@ -51,7 +51,7 @@ xline(0,'r--');
 ylabel('Normalized Response');
 xlabel('Time from stimulus onset (s)');
 xlim([min(Data.Overall.PSTHtime) max(Data.Overall.PSTHtime)]);
-ylim([-0.1 0.8]);
+ylim([-0.1 1]);
 yline(0);
 text(0.94, 0.62, sprintf('%g units', Data.Overall.NCells), 'FontSize',15);
 legend('No Opto', 'Opto');
