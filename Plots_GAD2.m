@@ -1,44 +1,45 @@
 %% Figure 1: Plots Opto Gratings
 Data = DataOut.AllMice;
 
-%% Example Neuron Plots
-NumPlots_Down = 3 % Number of Downregulated Example Cells to Plot
-NumPlots_Up = 1 % Number of Upregulated Example Cells to Plot
+%% Leonie's Figures pt. 1: Invidiual Example Neurons
+% 
+% NumPlots_Down = 3 % Number of Downregulated Example Cells to Plot
+% NumPlots_Up = 1 % Number of Upregulated Example Cells to Plot
+% 
+% ClIdx_Down = randi(height(Data.ClusterDataDown), [1 NumPlots_Down]);
+% figure; hold on;
+% for n = 1:NumPlots_Down  % Normalize to mean? Probably not necessary.
+%     % 
+%     i = ClIdx_Down(n)
+%     data_tmp = Data.ClusterDataDown(i,:);
+%     plot(data_tmp.PSTHBinCenters_Off, data_tmp.PSTHMean_Off, 'k');
+%     plot(data_tmp.PSTHBinCenters_On, data_tmp.PSTHMean_On, 'b');
+%     title(["Cl: " + string(data_tmp.ClusterN)]);
+%     xline(0,'r--');
+%     ylabel('Normalized Response');
+%     xlabel('Time from stimulus onset (s)');
+%     xlim([min(Data.Overall.PSTHtime) max(Data.Overall.PSTHtime)]);
+%     legend('No Opto', 'Opto');
+% end
+% hold off
+% 
+% ClIdx_Up = randi(height(Data.ClusterDataUp), [1 NumPlots_Up]);
+% figure; hold on
+% for i = ClIdx_Up % Should probably normalize 
+%     data_tmp = Data.ClusterDataUp(i,:);
+%     figure; hold on;
+%     plot(data_tmp.PSTHBinCenters_Off, data_tmp.PSTHMean_Off, 'k');
+%     plot(data_tmp.PSTHBinCenters_On, data_tmp.PSTHMean_On, 'b');
+%     title(["Cl: " + string(data_tmp.ClusterN)]);
+%     xline(0,'r--');
+%     ylabel('Normalized Response');
+%     xlabel('Time from stimulus onset (s)');
+%     xlim([min(Data.Overall.PSTHtime) max(Data.Overall.PSTHtime)]);
+%     legend('No Opto', 'Opto');
+% end
+% hold off
 
-ClIdx_Down = randi(height(Data.ClusterDataDown), [1 NumPlots_Down]);
-figure; hold on;
-for n = 1:NumPlots_Down % Should probably normalize 
-
-    i = ClIdx_Down(n)
-    data_tmp = Data.ClusterDataDown(i,:);
-    plot(data_tmp.PSTHBinCenters_Off, data_tmp.PSTHMean_Off, 'k');
-    plot(data_tmp.PSTHBinCenters_On, data_tmp.PSTHMean_On, 'b');
-    title(["Cl: " + string(data_tmp.ClusterN)]);
-    xline(0,'r--');
-    ylabel('Normalized Response');
-    xlabel('Time from stimulus onset (s)');
-    xlim([min(Data.Overall.PSTHtime) max(Data.Overall.PSTHtime)]);
-    legend('No Opto', 'Opto');
-end
-hold off
-
-ClIdx_Up = randi(height(Data.ClusterDataUp), [1 NumPlots_Up]);
-figure; hold on
-for i = ClIdx_Up % Should probably normalize 
-    data_tmp = Data.ClusterDataUp(i,:);
-    figure; hold on;
-    plot(data_tmp.PSTHBinCenters_Off, data_tmp.PSTHMean_Off, 'k');
-    plot(data_tmp.PSTHBinCenters_On, data_tmp.PSTHMean_On, 'b');
-    title(["Cl: " + string(data_tmp.ClusterN)]);
-    xline(0,'r--');
-    ylabel('Normalized Response');
-    xlabel('Time from stimulus onset (s)');
-    xlim([min(Data.Overall.PSTHtime) max(Data.Overall.PSTHtime)]);
-    legend('No Opto', 'Opto');
-end
-hold off
-
-%% PSTH
+%% Leonie's Figures pt. 2: Population
 
 % Mean Response Overall
 figure; hold on;
@@ -62,12 +63,12 @@ hold off;
 % Mean Response Upregulated Cells -> Normalized
 norm_up = max(Data.ClusterDataUp.PSTHMean_Off,[],2);
 figure; hold on;
-% plot(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_Off./norm_up, 1),'k');
-% plot(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_On./norm_up, 1),'b');
-shadedErrorBar(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_Off./norm_up, 1), ...
-    std(Data.ClusterDataUp.PSTHMean_Off./norm_up)/sqrt(Data.Overall.NCells_Increased), 'lineProps', 'k');
-shadedErrorBar(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_On./norm_up, 1), ..., 'lineProps', 'b');
-    std(Data.ClusterDataUp.PSTHMean_On./norm_up)/sqrt(Data.Overall.NCells_Increased), 'lineProps', 'b');
+plot(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_Off./norm_up, 1),'k');
+plot(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_On./norm_up, 1),'b');
+% shadedErrorBar(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_Off./norm_up, 1), ...
+%     std(Data.ClusterDataUp.PSTHMean_Off./norm_up,1)./sqrt(Data.Overall.NCells_Increased), 'lineProps', 'k');
+% shadedErrorBar(Data.Overall.PSTHBinCenters, mean(Data.ClusterDataUp.PSTHMean_On./norm_up, 1), ...
+%     std(Data.ClusterDataUp.PSTHMean_On./norm_up,1)./sqrt(Data.Overall.NCells_Increased), 'lineProps', 'b');
 xline(0,'r--');
 ylabel('Normalized Response');
 xlabel('Time from stimulus onset (s)');

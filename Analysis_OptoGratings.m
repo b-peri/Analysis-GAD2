@@ -1,30 +1,13 @@
 %% OptoGratings Analysis
 
-% Output should give:
-% [X] Per Cluster: Opto vs No-Opto
-%       - Single Values (Spontaneous, Evoked Firing Rate (Opto & No-Opto)
-%       - PSTH Values
-% [X] Per Mouse: NCells_Reduced, AverageReduction_sig (In sSC), NCells_Increased, AverageIncrease, p_val 
-% (for Opto vs No-Opto), vecMean_mean, vecSEM_mean (HOW? -> Currently SEM over means), 
-% vecBinCenters, n_trials, n_clusters
-% 
-% For each SubjectN = Cell? Table? Struct?;
-%   [X] Struct 1: Single-Unit (Per Cluster)
-%       [] ULTIMATELY alignment data -> Need to know whether clusters are
-%       located in sSC
-%   [X] Struct 2: Overall
-  
-% [X] Struct 3 (Overall over ALL mice included in analysis)
+% To-DO:
+%   [] Update exclusion window to cut out laser artefact
 
 
 %% Load in Data
 
 % Load in Correct Data File
 [FileNames, PathName] = uigetfile('*.mat', 'MultiSelect', 'on');
-% DataDirectory = dir(fullfile("C:\Software and Code\Analysis-GAD2\example_data_scripts\*.mat"));
-% FileNames = {DataDirectory.name};
-% sAP_Files = FileNames(endsWith(FileNames, '_Synthesis.mat'));
-% load(fullfile(DataDirectory(1).folder,sAP_Files{1})); % [] This currently just grabs the first folder in DataFile. May want to change this to be more specific later!
 
 %% Set Up Struct
 
@@ -49,14 +32,13 @@ else
 end
 
 % Get stimulus info
-sAP = sSynthData;
 intNumClu = length(sAP.sCluster); % Grabs number of clusters/putative cells
-structEP = sAP.cellStim{1,1}.structEP;  % structEP contains data on a single recording block (incl. stim onset/offset times)
-% -> This index is hardcoded. Not a huge deal if OptoGratings is always the
-% first block in the recording, but not very pretty/generalizable
+structEP = sAP.cellBlock{1,1};  % structEP contains data on a single recording block (incl. stim onset/offset times)
 vecStimOnSecs = structEP.vecStimOnTime; % For OptoGratings, synchronized stimulus onset times
 vecStimOffSecs = structEP.vecStimOffTime; % For Optogratings, synchronized stimulus OFFset times
 vecLaserOn = structEP.vecOptoOn; % Logical array: Tells whether opto was on for each trial!
+vecLaserOnTime = structEP.vecLaserOnTime; % Laser on times
+vecLaserOffTime = structEP.vecLaserOffTime; % Laser off times
 
 %% Prepare Output Table
 
@@ -81,6 +63,7 @@ PSTHBinCenters_Off = [];
 PSTHMean_On = [];
 PSTHSEM_On = [];
 PSTHBinCenters_On = [];
+Area = [];
 
 %% Analysis
 
@@ -91,6 +74,7 @@ BinEdge = [-1 -0.1 0.01 0.250]; % Bin edges for Spike Counting w/ Histcounts
 binDur = [BinEdge(2) - BinEdge(1), BinEdge(4) - BinEdge(3)]; % Bin Duration [Spontaneous, Evoked] -> Divisor when calculating Firing Rate later (Spikes/Period)
 ExclWindowSRate = [vecStimOnSecs'-1 vecStimOnSecs'-0.1]; % Excl. 100ms before stimulus onset -> Remove artefact
 n_trials = numel(vecStimOnSecs); % Number of Trials
+vecROI = ["Superior colliculus zonal layer" "Superior colliculus superficial gray layer" "Superior colliculus optic layer"];
 
 % -- Prep Analysis pt 2. --
 dblBinDur = 5e-3; % Binsize of PSTH
@@ -104,7 +88,7 @@ sOptions = -1;
 for intCh = 1:length(sAP.sCluster) % For each cluster:
     vecSpikes = sAP.sCluster(intCh).SpikeTimes;
     dblZetaP = zetatest(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto -> Visually responsive neurons
-    if dblZetaP < 0.01 %&& sCluster(intCh).Violations1ms < 0.25 && abs(sCluster(intCh).NonStationarity) < 0.25 % ONLY plots figures for units that are VISUALLY RESPONSIVE (according to Zeta)
+    if dblZetaP < 0.01 && any(strcmp(sAP.sCluster(intCh).Area, vecROI)) %&& sCluster(intCh).Violations1ms < 0.25 && abs(sCluster(intCh).NonStationarity) < 0.25
         % -- Analysis pt 1.  Opto vs No-Opto --
         sCounts_Opto = zeros(numel(vecStimOnSecs),2);
         for intTrial=1:n_trials
@@ -165,6 +149,7 @@ for intCh = 1:length(sAP.sCluster) % For each cluster:
         PSTHMean_Off = [PSTHMean_Off; vecMean_Off - SpontRate_Cl];
         PSTHSEM_Off = [PSTHSEM_Off; vecSEM_Off];
         PSTHBinCenters_Off = [PSTHBinCenters_Off; vecWindowBinCenters_Off];
+        Area = [Area; string(sAP.sCluster(intCh).Area)];
     else
         continue
     end
@@ -174,6 +159,7 @@ end
 
 n_clusters = numel(ClusterN);
 
+RecOverall.NCells = numel(ClusterN);
 RecOverall.NCells_Reduced = sum((p_val < 0.01) & PctChange < 0);
 RecOverall.MeanPctReduction = mean(PctChange(PctChange < 0)); % 
 RecOverall.NCells_Increased = sum((p_val < 0.01) & PctChange > 0);
@@ -200,9 +186,6 @@ RecOverall.PSTHSEM_On_norm = std(PSTHMean_On./norm, 1)/sqrt(n_clusters);
 RecOverall.PSTHBinSize = 5e-3; % Binsize of PSTH
 RecOverall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
 RecOverall.PSTHBinCenters = PSTHBinCenters_On(1,:);
-
-RecOverall.n_trials = n_trials;
-RecOverall.n_clusters = n_clusters;
 
 
 %% Write Output
@@ -269,9 +252,9 @@ DataOut.AllMice.ClusterDataNonSig = DataOut.AllMice.ClusterData(~(DataOut.AllMic
 DataOut.AllMice.Overall = AllM_Overall;
 
 %% Save Output
-if any(startsWith(string(fieldnames(DataOut)),'Rec7'))
-    SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2' '.mat'];
-elseif any(startsWith(string(fieldnames(DataOut)),'Rec8'))
-    SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_Control' '.mat'];
-end
-save(SaveFile, 'DataOut');
+% if any(startsWith(string(fieldnames(DataOut)),'Rec7'))
+%     SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2' '.mat'];
+% elseif any(startsWith(string(fieldnames(DataOut)),'Rec8'))
+%     SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_Control' '.mat'];
+% end
+% save(SaveFile, 'DataOut');

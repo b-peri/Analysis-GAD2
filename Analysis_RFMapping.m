@@ -25,24 +25,25 @@ vecY_pix = unique(vecUniqueRects(:,2))+(vecUniqueRects(1,4)-unique(vecUniqueRect
 
 %% loop through data
 
-%Check cells are visually responsive!
-
 matAvgRespAll = NaN(numel(vecY_pix),numel(vecX_pix),intNumClu);
 for intCh = 1:intNumClu
     vecSpikesCh = sAP.sCluster(intCh).SpikeTimes; % Load in spike times
-    vecRate = zeros(1,structEP.intTrialNum); % Initialize horizontal vector, each element contains total # of spikes during stimulus presentation on that trial
-    for intTrial = 1:structEP.intTrialNum
-        vecSpikeT = vecSpikesCh(vecSpikesCh>vecStimOnSecs(intTrial)&vecSpikesCh<vecStimOffSecs(intTrial)); % Grabs spike times that lie within stim presentation time for this trial
-        vecRate(intTrial) = numel(vecSpikeT)/(vecStimOffSecs(intTrial)-vecStimOnSecs(intTrial)); % Counts number of spikes
+    dblZetaP = zetatest(vecSpikeChs,vecStimOnSecs,0.9); % Compute zetatest for Stimuli w/o Opto -> Visually responsive neurons
+    if dblZetaP < 0.01
+        vecRate = zeros(1,structEP.intTrialNum); % Initialize horizontal vector, each element contains total # of spikes during stimulus presentation on that trial
+        for intTrial = 1:structEP.intTrialNum
+            vecSpikeT = vecSpikesCh(vecSpikesCh>vecStimOnSecs(intTrial)&vecSpikesCh<vecStimOffSecs(intTrial)); % Grabs spike times that lie within stim presentation time for this trial
+            vecRate(intTrial) = numel(vecSpikeT)/(vecStimOffSecs(intTrial)-vecStimOnSecs(intTrial)); % Counts number of spikes
+        end
+        matAvgResp = NaN(numel(vecY_pix),numel(vecX_pix)); % NaN Array where each element corresponds to a unique stim center; Will contain average number of spikes per stim location
+    
+        for intLoc = vecUniqueStims
+            matAvgResp(intLoc) = mean(vecRate(vecStimIdx==intLoc));
+        end
+        sParams.dblSecsFromPrevStimOff = 0.1; %s, for computing unit's baseline rate
+        dblRateSpontaneous = computeRateSpontaneous(vecSpikeT,vecStimOnSecs,vecStimOffSecs,sParams);
+        matAvgRespAll(:,:,intCh) = matAvgResp-dblRateSpontaneous; % Mean response minus baseline firing rate for that neuron/cluster!
     end
-    matAvgResp = NaN(numel(vecY_pix),numel(vecX_pix)); % NaN Array where each element corresponds to a unique stim center; Will contain average number of spikes per stim location
-
-    for intLoc = vecUniqueStims
-        matAvgResp(intLoc) = mean(vecRate(vecStimIdx==intLoc));
-    end
-    sParams.dblSecsFromPrevStimOff = 0.1; %s, for computing unit's baseline rate
-    dblRateSpontaneous = computeRateSpontaneous(vecSpikeT,vecStimOnSecs,vecStimOffSecs,sParams);
-    matAvgRespAll(:,:,intCh) = matAvgResp-dblRateSpontaneous; % Mean response minus baseline firing rate for that neuron/cluster!
 end
 
 %% plot data
@@ -58,6 +59,7 @@ end
 % cellColorMaps = RH_ColorMaps;
 %%
 %loop through channels
+
 set(0,'DefaultFigureWindowStyle','docked')
 for intCh = 1:intNumClu
     matAvgRespAll_interp = matAvgRespAll(:,:,intCh);
