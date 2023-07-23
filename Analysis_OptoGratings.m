@@ -68,12 +68,17 @@ Area = [];
 
 vecROI = ["Superior colliculus zonal layer" "Superior colliculus superficial gray layer" "Superior colliculus optic layer"];
 
+% vecROI = ["Superior colliculus zonal layer" "Superior colliculus" + ...
+%     " superficial gray layer" "Superior colliculus optic layer" ...
+%     "Superior colliculus motor related intermediate gray layer" ...
+%     "Superior colliculus motor related intermediate white layer"];
+
 % -- Prep Analysis pt 1. --
 % Spontaneous Rate = Mean rate in -1s - -100ms before stim onset
 % Visually Evoked Rate = Mean rate in 10-250ms after stim onset - Spontaneous Rate
 BinEdge = [-1 -0.1 0.01 0.250]; % Bin edges for Spike Counting w/ Histcounts
 binDur = [BinEdge(2) - BinEdge(1), BinEdge(4) - BinEdge(3)]; % Bin Duration [Spontaneous, Evoked] -> Divisor when calculating Firing Rate later (Spikes/Period)
-ExclWindowSRate = [vecStimOnSecs'-1 vecStimOnSecs'-0.1]; % Excl. 100ms before stimulus onset -> Remove artefact
+ExclWindowSRate = [vecStimOnSecs'-1 vecStimOnSecs'-0.1]; % Excl. 1s-100ms before stimulus onset -> Remove artefact
 n_trials = numel(vecStimOnSecs); % Number of Trials
 
 % -- Prep Analysis pt 2. --
@@ -121,7 +126,7 @@ for intCh = 1:length(sAP.sCluster) % For each cluster:
         EvokedRate_OptoOn_Cl = sRate_OptoOn - SpontRate_Cl;
         EvokedRate_OptoOff_Cl = sRate_OptoOff - SpontRate_Cl;
 
-        % Paired-Sample T-test (Channel) -> THIS IS DEFINITELY WEIRD ?
+        % T-test (Channel)
         [~,p_val_Cl] = ttest(EvokedRate_OptoOn_Cl, EvokedRate_OptoOff_Cl, 'Alpha', 0.01);
         
         % -- Analysis pt. 2: PSTH --
@@ -172,10 +177,10 @@ RecOverall.SE_OptoOff = std(ER_OptoOff, [], 1)/sqrt(n_clusters);
 
 % Non-Normalized PSTH Values
 norm = max(PSTHMean_Off,[],2);
-RecOverall.PSTHMean_Off = mean(PSTHMean_Off./norm, 1);
-RecOverall.PSTHSEM_Off = std(PSTHMean_Off./norm, 1)/sqrt(n_clusters);
-RecOverall.PSTHMean_On = mean(PSTHMean_On./norm, 1);
-RecOverall.PSTHSEM_On = std(PSTHMean_On./norm, 1)/sqrt(n_clusters);
+RecOverall.PSTHMean_Off = mean(PSTHMean_Off, 1);
+RecOverall.PSTHSEM_Off = std(PSTHMean_Off, 1)/sqrt(n_clusters);
+RecOverall.PSTHMean_On = mean(PSTHMean_On, 1);
+RecOverall.PSTHSEM_On = std(PSTHMean_On, 1)/sqrt(n_clusters);
 
 %Normalized PSTH Values
 norm = max(PSTHMean_Off,[],2);
@@ -252,12 +257,12 @@ DataOut_OG.AllMice.ClusterDataNonSig = DataOut_OG.AllMice.ClusterData(~(DataOut_
 DataOut_OG.AllMice.Overall = AllM_Overall;
 
 %% Save Output
-% if any(startsWith(string(fieldnames(DataOut)),'Rec7'))
-%     SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2' '.mat'];
-% elseif any(startsWith(string(fieldnames(DataOut)),'Rec8'))
-%     SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_Control' '.mat'];
-% end
-% save(SaveFile, 'DataOut');
+if any(startsWith(string(fieldnames(DataOut)),'Rec7'))
+    SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2' '.mat'];
+elseif any(startsWith(string(fieldnames(DataOut)),'Rec8'))
+    SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_Control' '.mat'];
+end
+save(SaveFile, 'DataOut');
 
-SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2_Filtered' '.mat'];
-save(SaveFile, 'DataOut_OG');
+% SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2_Filtered' '.mat'];
+% save(SaveFile, 'DataOut_OG');
