@@ -348,6 +348,7 @@ function [dblZetaP,sZETA,sRate,vecLatencies] = zetatest(vecSpikeTimes,matEventTi
                 sRate.dblOnset = [nan];
                 vecLatencies = [dblMaxDTime dblMaxDTimeInvSign dblPeakTime];
                 if intPeakLocInvSign > length(vecRate), intPeakLocInvSign = length(vecRate); end %added by RH
+                % if intZETALoc > length(vecRate), intZETALoc = length(vecRate); end % Added by BP
 				vecLatencyVals = [vecRate(intZETALoc) vecRate(intPeakLocInvSign) vecRate(intPeakLoc)];
 			end
 			intLatencyPeaks = min([intLatencyPeaks numel(vecLatencies)]);
