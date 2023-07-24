@@ -2,6 +2,9 @@
 
 % To-DO:
 %   [] Update exclusion window to cut out laser artefact (excl. between 0.045 - 0.015)
+%   [] Separate by Orientation? -> Not sure I'm seeing this one...
+%   [] Check that SpontRate has the right sign (binDur can be negative, watch out!)!
+%   [] Check normalization...
 
 %% Load in Data
 
@@ -39,6 +42,9 @@ vecLaserOn = structEP.vecOptoOn; % Logical array: Tells whether opto was on for 
 vecLaserOnTime = structEP.vecLaserOnTime; % Laser on times
 vecLaserOffTime = structEP.vecLaserOffTime; % Laser off times
 
+% Compute Differences & Append to Main Vec
+DiffTimes = [DiffTimes; (vecLaserOnTime - vecStimOnSecs(vecLaserOn))'];
+
 %% Prepare Output Table
 
 % Info to Have Per Mouse: 
@@ -66,12 +72,12 @@ Area = [];
 
 %% Analysis
 
-vecROI = ["Superior colliculus zonal layer" "Superior colliculus superficial gray layer" "Superior colliculus optic layer"];
+% vecROI = ["Superior colliculus zonal layer" "Superior colliculus superficial gray layer" "Superior colliculus optic layer"];
 
-% vecROI = ["Superior colliculus zonal layer" "Superior colliculus" + ...
-%     " superficial gray layer" "Superior colliculus optic layer" ...
-%     "Superior colliculus motor related intermediate gray layer" ...
-%     "Superior colliculus motor related intermediate white layer"];
+vecROI = ["Superior colliculus zonal layer" "Superior colliculus" + ...
+    " superficial gray layer" "Superior colliculus optic layer" ...
+    "Superior colliculus motor related intermediate gray layer" ...
+    "Superior colliculus motor related intermediate white layer"];
 
 % -- Prep Analysis pt 1. --
 % Spontaneous Rate = Mean rate in -1s - -100ms before stim onset
@@ -255,14 +261,16 @@ DataOut_OG.AllMice.ClusterDataDown = DataOut_OG.AllMice.ClusterData((DataOut_OG.
 DataOut_OG.AllMice.ClusterDataNonSig = DataOut_OG.AllMice.ClusterData(~(DataOut_OG.AllMice.ClusterData.p_val < 0.01),:);
 
 DataOut_OG.AllMice.Overall = AllM_Overall;
+DataOut_OG.AllMice.LatencyOpto = mean(DiffTimes);
+DataOut_OG.AllMice.LatencyOptoSEM = std(DiffTimes)/sqrt(length(DiffTimes));
 
 %% Save Output
-if any(startsWith(string(fieldnames(DataOut)),'Rec7'))
+if any(startsWith(string(fieldnames(DataOut_OG)),'Rec7'))
     SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2' '.mat'];
-elseif any(startsWith(string(fieldnames(DataOut)),'Rec8'))
+elseif any(startsWith(string(fieldnames(DataOut_OG)),'Rec8'))
     SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_Control' '.mat'];
 end
-save(SaveFile, 'DataOut');
+save(SaveFile, 'DataOut_OG');
 
 % SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2_Filtered' '.mat'];
 % save(SaveFile, 'DataOut_OG');

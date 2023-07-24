@@ -1,5 +1,5 @@
 %% Figure 1: Plots Opto Gratings
-Data = DataOut.AllMice;
+Data = DataOut_OG.AllMice;
 
 %% Leonie's Figures pt. 1: Invidiual Example Neurons
 % 
@@ -39,7 +39,7 @@ Data = DataOut.AllMice;
 % end
 % hold off
 
-%% Leonie's Figures pt. 2: Population
+%% Leonie's Figures pt. 2: Summary Stats
 
 % Mean Response Overall
 figure; hold on;
