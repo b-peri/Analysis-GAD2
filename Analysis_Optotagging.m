@@ -40,13 +40,13 @@ PSTHBinCenters = [];
 
 %% Compute Zeta, Get Latencies, and Get Average Responses
 
-vecROI = ["Superior colliculus zonal layer" "Superior colliculus" + ...
-    " superficial gray layer" "Superior colliculus optic layer"];
-
 % vecROI = ["Superior colliculus zonal layer" "Superior colliculus" + ...
-%     " superficial gray layer" "Superior colliculus optic layer" ...
-%     "Superior colliculus motor related intermediate gray layer" ...
-%     "Superior colliculus motor related intermediate white layer"];
+%     " superficial gray layer" "Superior colliculus optic layer"];
+
+vecROI = ["Superior colliculus zonal layer" "Superior colliculus" + ...
+    " superficial gray layer" "Superior colliculus optic layer" ...
+    "Superior colliculus motor related intermediate gray layer" ...
+    "Superior colliculus motor related intermediate white layer"];
 
 % --- Select Pulse Duration ---
 pulseDur = 0.02;
@@ -71,8 +71,8 @@ for intCl = 1:intNumClu
     if ismember(sAP.sCluster(intCl).Area, vecROI) %selection criteria: Area, quality criteria?
         % Compute Zeta and Inst. Firing Rate
         vecSpikeTimes = sAP.sCluster(intCl).SpikeTimes;
-        % [dblZetaP,~,sRate,vecLatency] = zetatest(vecSpikeTimes,vecLaserOnSecs(pulseDurs == 0.02),0.5);
-        dblZetaP = zetatest(vecSpikeTimes,vecLaserOnSecs,0.5); % -> 1. Should I be tested for Zeta over all stimDurs? 2. Is this window large enough to capture visual response?
+        [dblZetaP,~,sRate,vecLatency] = zetatest(vecSpikeTimes,vecLaserOnSecs(pulseDurTrial == 0.01)-0.5,2,[],4,3);
+        % dblZetaP = zetatest(vecSpikeTimes,vecLaserOnSecs,0.5); % -> 1. Should I be tested for Zeta over all stimDurs? 2. Is this window large enough to capture visual response?
         
         %if peak latency within 1-10ms -> optotagged; else continue with Sig Difference btwn spont rate and fr  
         % Check If Unit is optotagged
