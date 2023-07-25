@@ -6,13 +6,17 @@
 
 % To-Do
 
-%%
+%% Load in Data
 
-%Prep Table
-DataOut_OT.AllMice.ClusterData = cell2table(cell(0,14), 'VariableNames', ...
+% Load in Correct Data File
+[FileNames, PathName] = uigetfile('*.mat', 'MultiSelect', 'on');
+
+%% Set Up Struct
+
+DataOut_OT.ClusterData = cell2table(cell(0,15), 'VariableNames', ...
     {'Subject', 'RecDate', 'ClusterN', 'CellClass', 'Area', 'zeta_p_20ms', ...
     'Peak_Lat', 'IFR_Rate', 'IFR_Time', 'SpontRate', 'SpontRate_STD', ...
-    'PSTHMean_20ms', 'PSTHSEM_20ms', 'PSTHBinCenters'});
+    'PSTHMean_20ms', 'PSTHSEM_20ms', 'PSTHBinCenters', 'NonStationarity'});
 
 %% Start Loop
 
@@ -60,6 +64,8 @@ PSTHMean_20ms = [];
 PSTHSEM_20ms = [];
 PSTHBinCenters = [];
 
+NonStationarity = [];
+
 %% Compute Zeta, Get Latencies, and Get Average Responses
 
 % vecROI = ["Superior colliculus zonal layer" "Superior colliculus" + ...
@@ -67,8 +73,7 @@ PSTHBinCenters = [];
 
 vecROI = ["Superior colliculus zonal layer" "Superior colliculus" + ...
     " superficial gray layer" "Superior colliculus optic layer" ...
-    "Superior colliculus motor related intermediate gray layer" ...
-    "Superior colliculus motor related intermediate white layer"];
+    "Superior colliculus motor related intermediate gray layer"];
 
 % --- Select Pulse Duration ---
 % pulseDur = 0.02;
@@ -82,15 +87,15 @@ BinEdge = [-0.05 0 0.01 0.03]; % Bin edges for Spike Counting w/ Histcounts
 binDur = [BinEdge(2) - BinEdge(1), BinEdge(4) - BinEdge(3)]; % Bin Duration [Spontaneous, Evoked] -> Divisor when calculating Firing Rate later (Spikes/Period)
 
 % --- Prep PSTH ---
-dblBinDur = 5e-3; % Binsize of PSTH
+dblBinDur = 2e-3; % Binsize of PSTH
 vecTime = -0.1:dblBinDur:0.1; % PSTH X-Axis range/binsize
 % indExcludeOn = vecTime > -2* dblBinDur & vecTime < 2*dblBinDur; % First millisecond before and after stim onset
 % indExcludeOff = vecTime > (1+ -2* dblBinDur) & vecTime < (1+ 2*dblBinDur); % Ms before and after stim offset
 % indExclude = [find(indExcludeOn) find(indExcludeOff)];
-sOptions = -1;
+sOptions.handleFig = -1;
 
 for intCl = 1:intNumClu
-    if ismember(sAP.sCluster(intCl).Area, vecROI) %selection criteria: Area, quality criteria?
+    if ismember(sAP.sCluster(intCl).Area, vecROI) && sAP.sCluster(intCl).Violations1ms < 0.25 %&& abs(sAP.sCluster(intCl).NonStationarity) < 0.25 %selection criteria
         % Compute Zeta and Inst. Firing Rate of for pulseDur = 0.02
         vecSpikeTimes = sAP.sCluster(intCl).SpikeTimes;
         [dblZetaP,~,sRate] = zetatest(vecSpikeTimes,vecLaserOnSecs(pulseDurTrial == 0.02)-0.5,1);
@@ -147,7 +152,7 @@ for intCl = 1:intNumClu
         end
 
         % --- PSTH ---
-        [PSTHMean_20ms_Cl,PSTHSEM_20ms_Cl,PSTHBinCenters_20ms_Cl,~] = doPEP(vecSpikeTimes,vecTime,vecLaserOnSecs(pulseDurTrial == 0.02),sOptions);
+        [PSTHMean_20ms_Cl,PSTHSEM_20ms_Cl,PSTHBinCenters_20ms_Cl,~] = doPEP({vecSpikeTimes},vecTime,vecLaserOnSecs(pulseDurTrial == 0.02),sOptions);
 
         % --- Export Cluster Data ---
 
@@ -166,39 +171,47 @@ for intCl = 1:intNumClu
         PSTHSEM_20ms = [PSTHSEM_20ms; PSTHSEM_20ms_Cl];
         PSTHBinCenters = [PSTHBinCenters; PSTHBinCenters_20ms_Cl];
 
+        NonStationarity = [NonStationarity; sAP.sCluster(intCl).NonStationarity];
     else
         continue;
     end
 end
 
+if isempty(ClusterN); % If no cells found, skip rest of analysis
+    continue;
+end
+
 %% RecOverall
 
-RecOverall.NCells = numel(ClusterN);
-RecOverall.NCells_GAD2 = sum(CellClass == "GAD2+");
-% RecOverall.PLatency_GAD2 = % look for function that gives values for boxplot
-RecOverall.NCells_Inhibited = sum(CellClass == "Inhibited");
-% RecOverall.PLatency_Inhibited = %
-RecOverall.NCells_Activated = sum(CellClass == "Activated");
-% RecOverall.PLatency_Activated = %
-RecOverall.NCells_Other = sum(CellClass == "Other");
+% RecOverall.NCells = numel(ClusterN);
+% RecOverall.NCells_GAD2 = sum(CellClass == "GAD2+");
+% % RecOverall.PLatency_GAD2 = % look for function that gives values for boxplot
+% RecOverall.NCells_Inhibited = sum(CellClass == "Inhibited");
+% % RecOverall.PLatency_Inhibited = %
+% RecOverall.NCells_Activated = sum(CellClass == "Activated");
+% % RecOverall.PLatency_Activated = %
+% RecOverall.NCells_Other = sum(CellClass == "Other");
 
 %% Write RecData to Overall Table
 
 % Write Table (Subject)
-RecData.ClusterData = table(ClusterN, CellClass, Area, zeta_p_20ms, ...
-    Peak_Lat, IFR_Rate, IFR_Time, SpontRate, SpontRate_STD, PSTHMean_20ms, ...
-    PSTHSEM_20ms, PSTHBinCenters);
+% RecData.ClusterData = table(ClusterN, CellClass, Area, zeta_p_20ms, ...
+    % Peak_Lat, IFR_Rate, IFR_Time, SpontRate, SpontRate_STD, PSTHMean_20ms, ...
+    % PSTHSEM_20ms, PSTHBinCenters, NonStationarity);
 
 % Overall Subject Data
-RecData.OverallData = RecOverall;
+% RecData.OverallData = RecOverall;
 
 % Add to DataOut
-SubjectN = table(repmat(sAP.sJson.subject, [numel(ClusterN) 1]), 'VariableNames', {'Subject'});
-RecDate = cell2table(repmat({sAP.sJson.date}', [numel(ClusterN) 1]), 'VariableNames', {'RecDate'});
-DataOut_OT.AllMice.ClusterData = [DataOut_OT.AllMice.ClusterData; [SubjectN RecDate RecData.ClusterData]];
+SubjectN = table(repmat(string(sAP.sJson.subject), [numel(ClusterN) 1]), 'VariableNames', {'Subject'});
+RecDate = table(repmat(string(sAP.sJson.date), [numel(ClusterN) 1]), 'VariableNames', {'RecDate'});
+DataOut_OT.ClusterData = [DataOut_OT.ClusterData; [SubjectN ...
+    RecDate table(ClusterN, CellClass, Area, zeta_p_20ms, ...
+    Peak_Lat, IFR_Rate, IFR_Time, SpontRate, SpontRate_STD, PSTHMean_20ms, ...
+    PSTHSEM_20ms, PSTHBinCenters, NonStationarity);]];
 
-RecordingName = [replace(sAP.sJson.experiment(1:end-6),'-','_')];
-DataOut_OT.(RecordingName) = RecData;
+% RecordingName = [replace(sAP.sJson.experiment(1:end-6),'-','_')];
+% DataOut_OT.(RecordingName) = RecData;
 
 end
 
@@ -206,62 +219,72 @@ end
 
 %Create (additional) separate structs for optotagged and non-optotagged
 %units!
-DOT = DataOut_OT.AllMice.ClusterData;
+DOT = DataOut_OT.ClusterData;
 All_M = struct;
 
 n_clusters_overall = height(DOT);
-All_M.NMice = numel(unique(DOT.Subject));
-All_M.NRecs = numel(fieldnames(DataOut_OT)) - 1;
-All_M.NCells = n_clusters_overall; % Probably will need to tweak this!
-All_M.NCells_GAD2 = sum(DOT.CellClass == "GAD2+");
-All_M.NCells_Inh = sum(DOT.CellClass == "Inhibited");
-All_M.NCells_Act = sum(DOT.CellClass == "Activated");
-All_M.NCells_Oth = sum(DOT.CellClass == "Other");
+DataOut_OT.Overall.NMice = numel(unique(DOT.Subject));
+DataOut_OT.Overall.NRecs = numel(fieldnames(DataOut_OT)) - 1;
+DataOut_OT.Overall.NCells = n_clusters_overall; % Probably will need to tweak this!
+DataOut_OT.Overall.NCells_GAD2 = sum(DOT.CellClass == "GAD2+");
+DataOut_OT.Overall.NCells_Inh = sum(DOT.CellClass == "Inhibited");
+DataOut_OT.Overall.NCells_Act = sum(DOT.CellClass == "Activated");
+DataOut_OT.Overall.NCells_Oth = sum(DOT.CellClass == "Other");
 
 % Z-Scored PSTH Values
 zscored_PSTH = ((DOT.PSTHMean_20ms - DOT.SpontRate)./DOT.SpontRate_STD);
 
-All_M.PSTHMean_20ms_GAD2 = mean(zscored_PSTH(DOT.CellClass == "GAD2+",:), 1);
-All_M.PSTHSEM_20ms_GAD2 = std(zscored_PSTH(DOT.CellClass == "GAD2+",:))/sum(DOT.CellClass == "GAD2+");
+DataOut_OT.Overall.PSTHMean_20ms_GAD2 = mean(zscored_PSTH(DOT.CellClass == "GAD2+",:), 1);
+DataOut_OT.Overall.PSTHSEM_20ms_GAD2 = std(zscored_PSTH(DOT.CellClass == "GAD2+",:))/sum(DOT.CellClass == "GAD2+");
 
-All_M.PSTHMean_20ms_Inh = mean(zscored_PSTH(DOT.CellClass == "Inhibited",:), 1);
-All_M.PSTHSEM_20ms_Inh = std(zscored_PSTH(DOT.CellClass == "Inhibited",:))/sum(DOT.CellClass == "Inhibited");
+DataOut_OT.Overall.PSTHMean_20ms_Inh = mean(zscored_PSTH(DOT.CellClass == "Inhibited",:), 1);
+DataOut_OT.Overall.PSTHSEM_20ms_Inh = std(zscored_PSTH(DOT.CellClass == "Inhibited",:))/sum(DOT.CellClass == "Inhibited");
 
-All_M.PSTHMean_20ms_Act = mean(zscored_PSTH(DOT.CellClass == "Activated",:), 1);
-All_M.PSTHSEM_20ms_Act = std(zscored_PSTH(DOT.CellClass == "Activated",:))/sum(DOT.CellClass == "Activated");
+DataOut_OT.Overall.PSTHMean_20ms_Act = mean(zscored_PSTH(DOT.CellClass == "Activated",:), 1);
+DataOut_OT.Overall.PSTHSEM_20ms_Act = std(zscored_PSTH(DOT.CellClass == "Activated",:))/sum(DOT.CellClass == "Activated");
 
-All_M.PSTHMean_20ms_Oth = mean(zscored_PSTH(DOT.CellClass == "Other",:), 1);
-All_M.PSTHSEM_20ms_Oth = std(zscored_PSTH(DOT.CellClass == "Other",:))/sum(DOT.CellClass == "Other");
+DataOut_OT.Overall.PSTHMean_20ms_Oth = mean(zscored_PSTH(DOT.CellClass == "Other",:), 1);
+DataOut_OT.Overall.PSTHSEM_20ms_Oth = std(zscored_PSTH(DOT.CellClass == "Other",:))/sum(DOT.CellClass == "Other");
 
 %Normalized PSTH Values
 PSTHMean_20ms_BL = DOT.PSTHMean_20ms - DOT.SpontRate;
 norm = max(PSTHMean_20ms_BL,[],2);
 
-All_M.PSTHMean_20ms_GAD2_norm = mean(PSTHMean_20ms_BL(DOT.CellClass == "GAD2+",:)./norm(DOT.CellClass == "GAD2+"), 1);
-All_M.PSTHSEM_20ms_GAD2_norm = std(PSTHMean_20ms_BL(DOT.CellClass == "GAD2+",:)./norm(DOT.CellClass == "GAD2+"), 1)/sqrt(sum(DOT.CellClass == "GAD2+"));
+DataOut_OT.Overall.PSTHMean_20ms_GAD2_norm = mean(PSTHMean_20ms_BL(DOT.CellClass == "GAD2+",:)./norm(DOT.CellClass == "GAD2+"), 1);
+DataOut_OT.Overall.PSTHSEM_20ms_GAD2_norm = std(PSTHMean_20ms_BL(DOT.CellClass == "GAD2+",:)./norm(DOT.CellClass == "GAD2+"), 1)/sqrt(sum(DOT.CellClass == "GAD2+"));
 
-All_M.PSTHMean_20ms_Inh_norm = mean(PSTHMean_20ms_BL(DOT.CellClass == "Inhibited",:)./norm(DOT.CellClass == "Inhibited"), 1);
-All_M.PSTHSEM_20ms_Inh_norm = std(PSTHMean_20ms_BL(DOT.CellClass == "Inhibited",:)./norm(DOT.CellClass == "Inhibited"), 1)/sqrt(sum(DOT.CellClass == "Inhibited"));
+DataOut_OT.Overall.PSTHMean_20ms_Inh_norm = mean(PSTHMean_20ms_BL(DOT.CellClass == "Inhibited",:)./norm(DOT.CellClass == "Inhibited"), 1);
+DataOut_OT.Overall.PSTHSEM_20ms_Inh_norm = std(PSTHMean_20ms_BL(DOT.CellClass == "Inhibited",:)./norm(DOT.CellClass == "Inhibited"), 1)/sqrt(sum(DOT.CellClass == "Inhibited"));
 
-All_M.PSTHMean_20ms_Act_norm = mean(PSTHMean_20ms_BL(DOT.CellClass == "Activated",:)./norm(DOT.CellClass == "Activated"), 1);
-All_M.PSTHSEM_20ms_Act_norm = std(PSTHMean_20ms_BL(DOT.CellClass == "Activated",:)./norm(DOT.CellClass == "Activated"), 1)/sqrt(sum(DOT.CellClass == "Activated"));
+DataOut_OT.Overall.PSTHMean_20ms_Act_norm = mean(PSTHMean_20ms_BL(DOT.CellClass == "Activated",:)./norm(DOT.CellClass == "Activated"), 1);
+DataOut_OT.Overall.PSTHSEM_20ms_Act_norm = std(PSTHMean_20ms_BL(DOT.CellClass == "Activated",:)./norm(DOT.CellClass == "Activated"), 1)/sqrt(sum(DOT.CellClass == "Activated"));
 
-All_M.PSTHMean_20ms_Oth_norm = mean(PSTHMean_20ms_BL(DOT.CellClass == "Other",:)./norm(DOT.CellClass == "Other"), 1);
-All_M.PSTHSEM_20ms_Oth_norm = std(PSTHMean_20ms_BL(DOT.CellClass == "Other",:)./norm(DOT.CellClass == "Other"), 1)/sqrt(sum(DOT.CellClass == "Other"));
+DataOut_OT.Overall.PSTHMean_20ms_Oth_norm = mean(PSTHMean_20ms_BL(DOT.CellClass == "Other",:)./norm(DOT.CellClass == "Other"), 1);
+DataOut_OT.Overall.PSTHSEM_20ms_Oth_norm = std(PSTHMean_20ms_BL(DOT.CellClass == "Other",:)./norm(DOT.CellClass == "Other"), 1)/sqrt(sum(DOT.CellClass == "Other"));
 
-All_M.PSTHBinSize = dblBinDur; % Binsize of PSTH
-All_M.PSTHtime = vecTime; % PSTH X-Axis range/binsize
-All_M.PSTHBinCenters = PSTHBinCenters(1,:);
-
-DataOut_OT.AllMice.Overall = All_M;
+DataOut_OT.Overall.PSTHBinSize = dblBinDur; % Binsize of PSTH
+DataOut_OT.Overall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
+DataOut_OT.Overall.PSTHBinCenters = PSTHBinCenters(1,:);
 
 %%
 
-st = sAP.sCluster(488).SpikeTimes;
+clearvars -except DataOut_OT DataOut_OG DataOut_OGt DOT
 
-stim = vecLaserOnSecs(pulseDurTrial == 0.02) - 0.1;
+if any(startsWith(string(fieldnames(DataOut_OG)),'Rec7'))
+    SaveFile = ['DataOut_Optotagging_' datestr(datetime("today"),"dd-mm-yy") '_GAD2' '.mat'];
+elseif any(startsWith(string(fieldnames(DataOut_OG)),'Rec8'))
+    SaveFile = ['DataOut_Optotagging_' datestr(datetime("today"),"dd-mm-yy") '_Control' '.mat'];
+end
+save(SaveFile, 'DataOut_OT');
 
-maxDur = 0.2;
-
-figure; hold on
-plotRaster(st,stim,maxDur); xline(0, 'r'); fixfig
+% st = sAP.sCluster(234).SpikeTimes;
+% 
+% stim = vecLaserOnSecs(pulseDurTrial == 0.02) - 0.1;
+% 
+% maxDur = 0.2;
+% 
+% figure; hold on
+% plotRaster(st,stim,maxDur); xline(0.1, 'r--'); xline(0.101, 'b--');
+% xline(0.110, 'g--'); xline(0.130, 'g--'); fixfig
+% 
+% figure; plot(PSTHBinCenters_20ms_Cl, PSTHMean_20ms_Cl);

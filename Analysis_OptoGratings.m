@@ -5,6 +5,7 @@
 %   [] Separate by Orientation? -> Not sure I'm seeing this one...
 %   [] Check that SpontRate has the right sign (binDur can be negative, watch out!)!
 %   [] Check normalization...
+%   [] Check SEM calculation...
 
 %% Load in Data
 
@@ -17,6 +18,8 @@ DataOut_OG.AllMice.ClusterData = cell2table(cell(0,18), 'VariableNames', {'Subje
     'ER_OptoOn', 'SE_OptoOff', 'SE_OptoOn', 'PctChange', 'p_val', 'PSTHMean_Off', ...
     'PSTHSEM_Off', 'PSTHBinCenters_Off', 'PSTHMean_On', 'PSTHSEM_On', ...
     'PSTHBinCenters_On'});
+
+DiffTimes = [];
 
 %% Start Loop
 
@@ -76,8 +79,7 @@ Area = [];
 
 vecROI = ["Superior colliculus zonal layer" "Superior colliculus" + ...
     " superficial gray layer" "Superior colliculus optic layer" ...
-    "Superior colliculus motor related intermediate gray layer" ...
-    "Superior colliculus motor related intermediate white layer"];
+    "Superior colliculus motor related intermediate gray layer"];
 
 % -- Prep Analysis pt 1. --
 % Spontaneous Rate = Mean rate in -1s - -100ms before stim onset
@@ -93,13 +95,13 @@ vecTime = -0.2:dblBinDur:1.2; % PSTH X-Axis range/binsize
 indExcludeOn = vecTime > -2* dblBinDur & vecTime < 2*dblBinDur; % First millisecond before and after stim onset
 indExcludeOff = vecTime > (1+ -2* dblBinDur) & vecTime < (1+ 2*dblBinDur); % Ms before and after stim offset
 indExclude = [find(indExcludeOn) find(indExcludeOff)];
-sOptions = -1;
+sOptions.handleFig = -1;
 
 % -- Start Loop --
 for intCh = 1:length(sAP.sCluster) % For each cluster:
     vecSpikes = sAP.sCluster(intCh).SpikeTimes;
     dblZetaP = zetatest(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto -> Visually responsive neurons
-    if dblZetaP < 0.01 && ismember(sAP.sCluster(intCh).Area, vecROI) %&& sCluster(intCh).Violations1ms < 0.25 && abs(sCluster(intCh).NonStationarity) < 0.25
+    if dblZetaP < 0.01 && ismember(sAP.sCluster(intCh).Area, vecROI) %&& sAP.sCluster(intCh).Violations1ms < 0.25 %&& abs(sCluster(intCh).NonStationarity) < 0.25
         % -- Analysis pt 1.  Opto vs No-Opto --
         sCounts_Opto = zeros(numel(vecStimOnSecs),2);
         for intTrial=1:n_trials
@@ -265,12 +267,15 @@ DataOut_OG.AllMice.LatencyOpto = mean(DiffTimes);
 DataOut_OG.AllMice.LatencyOptoSEM = std(DiffTimes)/sqrt(length(DiffTimes));
 
 %% Save Output
-if any(startsWith(string(fieldnames(DataOut_OG)),'Rec7'))
-    SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2' '.mat'];
-elseif any(startsWith(string(fieldnames(DataOut_OG)),'Rec8'))
-    SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_Control' '.mat'];
-end
-save(SaveFile, 'DataOut_OG');
 
-% SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2_Filtered' '.mat'];
+clearvars -except DataOut_OT DataOut_OG DataOut_OGt DOT
+
+% if any(startsWith(string(fieldnames(DataOut_OG)),'Rec7'))
+%     SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2' '.mat'];
+% elseif any(startsWith(string(fieldnames(DataOut_OG)),'Rec8'))
+%     SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_Control' '.mat'];
+% end
 % save(SaveFile, 'DataOut_OG');
+
+SaveFile = ['DataOut_OptoGratings_' datestr(datetime("today"),"dd-mm-yy") '_GAD2_Unfiltered' '.mat'];
+save(SaveFile, 'DataOut_OG');
