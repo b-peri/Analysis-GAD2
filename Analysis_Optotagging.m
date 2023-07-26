@@ -6,6 +6,10 @@
 
 % To-Do
 
+% [] Tweak inclusion window GAD2+ cells (REMOVE: -1ms - 6ms around LASER
+% ON; AND () around LASER OFF!!)
+% [] Fix 
+
 %% Load in Data
 
 % Load in Correct Data File
@@ -13,6 +17,7 @@
 
 %% Set Up Struct
 
+DataOut_OT.Overall = struct;
 DataOut_OT.ClusterData = cell2table(cell(0,15), 'VariableNames', ...
     {'Subject', 'RecDate', 'ClusterN', 'CellClass', 'Area', 'zeta_p_20ms', ...
     'Peak_Lat', 'IFR_Rate', 'IFR_Time', 'SpontRate', 'SpontRate_STD', ...
@@ -76,14 +81,12 @@ vecROI = ["Superior colliculus zonal layer" "Superior colliculus" + ...
     "Superior colliculus motor related intermediate gray layer"];
 
 % --- Select Pulse Duration ---
-% pulseDur = 0.02;
-% n_trials_20ms = sum(pulseDurTrial == 0.02);
-% vecLaserOnSecs_dur = vecLaserOnSecs(pulseDurTrial == pulseDurTrial);
+pulseSelect = 0.05;
 
 % --- Prep Overall Modulation (Baseline vs. Evoked) ---
 % Spontaneous Rate = Mean rate in -1s - -100ms before stim onset
 % Visually Evoked Rate = Mean rate in 10-250ms after stim onset - Spontaneous Rate
-BinEdge = [-0.05 0 0.01 0.03]; % Bin edges for Spike Counting w/ Histcounts
+BinEdge = [-0.5 0 0.01 0.03]; % Bin edges for Spike Counting w/ Histcounts
 binDur = [BinEdge(2) - BinEdge(1), BinEdge(4) - BinEdge(3)]; % Bin Duration [Spontaneous, Evoked] -> Divisor when calculating Firing Rate later (Spikes/Period)
 
 % --- Prep PSTH ---
@@ -98,14 +101,25 @@ for intCl = 1:intNumClu
     if ismember(sAP.sCluster(intCl).Area, vecROI) && sAP.sCluster(intCl).Violations1ms < 0.25 %&& abs(sAP.sCluster(intCl).NonStationarity) < 0.25 %selection criteria
         % Compute Zeta and Inst. Firing Rate of for pulseDur = 0.02
         vecSpikeTimes = sAP.sCluster(intCl).SpikeTimes;
-        [dblZetaP,~,sRate] = zetatest(vecSpikeTimes,vecLaserOnSecs(pulseDurTrial == 0.02)-0.5,1);
+        if size(vecSpikeTimes) < 1000
+            continue;
+        end
+        [dblZetaP,~,sRate] = zetatest(vecSpikeTimes,vecLaserOnSecs(pulseDurTrial == pulseSelect)-0.5,1);
         if dblZetaP >= 0.01
             continue;
         end
-        [~,indPeak] = max(sRate.vecRate);
-        PeakLat_Cl = sRate.vecT(indPeak);
+        peakWin = [0.499 0.506];
+        % PeakMax = max(sRate.vecRate(sRate.vecT < peakWin(1) | sRate.vecT > peakWin(2)));
+        % PeakMin = min(sRate.vecRate(sRate.vecT < peakWin(1) | sRate.vecT > peakWin(2)));
+        [~,indPeak] = max(sRate.vecRate(sRate.vecT < peakWin(1) | sRate.vecT > peakWin(2)));
+        vecT_short = sRate.vecT(sRate.vecT < peakWin(1) | sRate.vecT > peakWin(2));
+                PeakLat_Cl = vecT_short(indPeak);
+        RFmap_times = [sAP.cellBlock{2}.vecStimOnTime(1) sAP.cellBlock{2}.vecStimOffTime(end)];
+        spikesRF = sum(vecSpikeTimes > RFmap_times(1) & vecSpikeTimes < RFmap_times(2));
+        % [dblPeakValue,dblPeakTime,dblPeakWidth,vecPeakStartStop,intPeakLoc,vecPeakStartStopIdx] = getPeak(sRate.vecRate,sRate.vecT,[sRate.vecT > peakWin(2)],intSwitchZ)
+
         % --- Classify Clusters ---
-        if (PeakLat_Cl < 0.501)
+        if isempty(PeakLat_Cl) | (PeakLat_Cl < 0.506) | spikesRF == 0 %| (PeakLat_Cl > 0.530)
             continue;
         elseif (PeakLat_Cl < 0.51)
             % --- Get SpontRate_Cl for GAD2+ neuron ---
@@ -115,8 +129,8 @@ for intCl = 1:intNumClu
 	            [vecCounts,edges] = histcounts(vecSpikeTimes,vecTrialEdges);
 	            sCounts_ER(intTrial) = vecCounts(1); % Counts Spontaneous Rate
             end
-            
-            sRate_ER = mean(sCounts_ER(:,1)/abs(binDur(1))); % Spike rates for each trial [Rate during -0.05s-0s, Rate during 0.01-0.03s]
+
+            sRate_ER = sCounts_ER(:,1)/abs(binDur(1)); % Spike rates for each trial [Rate during -0.05s-0s, Rate during 0.01-0.03s]
             SpontRate_Cl = mean(sRate_ER(:,1));
             SpontRate_STD_Cl = std(sRate_ER(:,1));
             
@@ -136,10 +150,10 @@ for intCl = 1:intNumClu
             % Mean Spontaneous & Evoked Rates
             SpontRate_Cl = mean(sRate_ER(:,1));
             SpontRate_STD_Cl = std(sRate_ER(:,1));
-            EvokedRate_20ms_Cl = mean(sRate_ER(pulseDurTrial == 0.02,2));
+            EvokedRate_20ms_Cl = mean(sRate_ER(pulseDurTrial == pulseSelect,2));
             
             % T-tests
-            [~,p_val_20ms_Cl] = ttest(sRate_ER(pulseDurTrial == 0.02,2), sRate_ER(pulseDurTrial == 0.02,1), 'Alpha', 0.01);
+            [~,p_val_20ms_Cl] = ttest(sRate_ER(pulseDurTrial == pulseSelect,2), sRate_ER(pulseDurTrial == pulseSelect,1), 'Alpha', 0.01);
             
             % Simple Classification for Now
             if (p_val_20ms_Cl < 0.01) && (EvokedRate_20ms_Cl > SpontRate_Cl)
@@ -152,7 +166,7 @@ for intCl = 1:intNumClu
         end
 
         % --- PSTH ---
-        [PSTHMean_20ms_Cl,PSTHSEM_20ms_Cl,PSTHBinCenters_20ms_Cl,~] = doPEP({vecSpikeTimes},vecTime,vecLaserOnSecs(pulseDurTrial == 0.02),sOptions);
+        [PSTHMean_20ms_Cl,PSTHSEM_20ms_Cl,PSTHBinCenters_20ms_Cl,~] = doPEP({vecSpikeTimes},vecTime,vecLaserOnSecs(pulseDurTrial == pulseSelect),sOptions);
 
         % --- Export Cluster Data ---
 
@@ -215,16 +229,13 @@ DataOut_OT.ClusterData = [DataOut_OT.ClusterData; [SubjectN ...
 
 end
 
-%%
+%% Overall Data
 
-%Create (additional) separate structs for optotagged and non-optotagged
-%units!
 DOT = DataOut_OT.ClusterData;
-All_M = struct;
 
 n_clusters_overall = height(DOT);
 DataOut_OT.Overall.NMice = numel(unique(DOT.Subject));
-DataOut_OT.Overall.NRecs = numel(fieldnames(DataOut_OT)) - 1;
+DataOut_OT.Overall.NRecs = numel(unique([DataOut_OT.ClusterData.Subject DataOut_OT.ClusterData.RecDate], 'rows'));
 DataOut_OT.Overall.NCells = n_clusters_overall; % Probably will need to tweak this!
 DataOut_OT.Overall.NCells_GAD2 = sum(DOT.CellClass == "GAD2+");
 DataOut_OT.Overall.NCells_Inh = sum(DOT.CellClass == "Inhibited");
@@ -234,17 +245,17 @@ DataOut_OT.Overall.NCells_Oth = sum(DOT.CellClass == "Other");
 % Z-Scored PSTH Values
 zscored_PSTH = ((DOT.PSTHMean_20ms - DOT.SpontRate)./DOT.SpontRate_STD);
 
-DataOut_OT.Overall.PSTHMean_20ms_GAD2 = mean(zscored_PSTH(DOT.CellClass == "GAD2+",:), 1);
-DataOut_OT.Overall.PSTHSEM_20ms_GAD2 = std(zscored_PSTH(DOT.CellClass == "GAD2+",:))/sum(DOT.CellClass == "GAD2+");
+DataOut_OT.Overall.PSTHMean_20ms_GAD2_z = mean(zscored_PSTH(DOT.CellClass == "GAD2+",:), 1);
+DataOut_OT.Overall.PSTHSEM_20ms_GAD2_z = std(zscored_PSTH(DOT.CellClass == "GAD2+",:))/sum(DOT.CellClass == "GAD2+");
 
-DataOut_OT.Overall.PSTHMean_20ms_Inh = mean(zscored_PSTH(DOT.CellClass == "Inhibited",:), 1);
-DataOut_OT.Overall.PSTHSEM_20ms_Inh = std(zscored_PSTH(DOT.CellClass == "Inhibited",:))/sum(DOT.CellClass == "Inhibited");
+DataOut_OT.Overall.PSTHMean_20ms_Inh_z = mean(zscored_PSTH(DOT.CellClass == "Inhibited",:), 1);
+DataOut_OT.Overall.PSTHSEM_20ms_Inh_z = std(zscored_PSTH(DOT.CellClass == "Inhibited",:))/sum(DOT.CellClass == "Inhibited");
 
-DataOut_OT.Overall.PSTHMean_20ms_Act = mean(zscored_PSTH(DOT.CellClass == "Activated",:), 1);
-DataOut_OT.Overall.PSTHSEM_20ms_Act = std(zscored_PSTH(DOT.CellClass == "Activated",:))/sum(DOT.CellClass == "Activated");
+DataOut_OT.Overall.PSTHMean_20ms_Act_z = mean(zscored_PSTH(DOT.CellClass == "Activated",:), 1);
+DataOut_OT.Overall.PSTHSEM_20ms_Act_z = std(zscored_PSTH(DOT.CellClass == "Activated",:))/sum(DOT.CellClass == "Activated");
 
-DataOut_OT.Overall.PSTHMean_20ms_Oth = mean(zscored_PSTH(DOT.CellClass == "Other",:), 1);
-DataOut_OT.Overall.PSTHSEM_20ms_Oth = std(zscored_PSTH(DOT.CellClass == "Other",:))/sum(DOT.CellClass == "Other");
+DataOut_OT.Overall.PSTHMean_20ms_Oth_z = mean(zscored_PSTH(DOT.CellClass == "Other",:), 1);
+DataOut_OT.Overall.PSTHSEM_20ms_Oth_z = std(zscored_PSTH(DOT.CellClass == "Other",:))/sum(DOT.CellClass == "Other");
 
 %Normalized PSTH Values
 PSTHMean_20ms_BL = DOT.PSTHMean_20ms - DOT.SpontRate;
@@ -268,11 +279,11 @@ DataOut_OT.Overall.PSTHBinCenters = PSTHBinCenters(1,:);
 
 %%
 
-clearvars -except DataOut_OT DataOut_OG DataOut_OGt DOT
+clearvars -except DataOut_OT DataOut_OG DataOut_OGt
 
-if any(startsWith(string(fieldnames(DataOut_OG)),'Rec7'))
+if any(startsWith(string(fieldnames(DataOut_OT)),'Rec7'))
     SaveFile = ['DataOut_Optotagging_' datestr(datetime("today"),"dd-mm-yy") '_GAD2' '.mat'];
-elseif any(startsWith(string(fieldnames(DataOut_OG)),'Rec8'))
+elseif any(startsWith(string(fieldnames(DataOut_OT)),'Rec8'))
     SaveFile = ['DataOut_Optotagging_' datestr(datetime("today"),"dd-mm-yy") '_Control' '.mat'];
 end
 save(SaveFile, 'DataOut_OT');
