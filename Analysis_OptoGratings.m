@@ -2,10 +2,14 @@
 
 % To-DO:
 %   [] Update exclusion window to cut out laser artefact (excl. between 0.045 - 0.015)
-%   [] Separate by Orientation? -> Not sure I'm seeing this one...
-%   [] Check that SpontRate has the right sign (binDur can be negative, watch out!)!
+%   [] Separate by Orientation? -> Not sure I'm seeing this one... >
+%   Supplementary fig at most
 %   [] Check normalization...
 %   [] Check SEM calculation...
+
+% Ask Robin:
+% [] -> Exclusion period... Should this be the same across figures? How do
+% I justify using a _different_ one here?
 
 %% Load in Data
 
@@ -86,22 +90,21 @@ vecROI = ["Superior colliculus zonal layer" "Superior colliculus" + ...
 % Visually Evoked Rate = Mean rate in 10-250ms after stim onset - Spontaneous Rate
 BinEdge = [-1 -0.1 0.01 0.250]; % Bin edges for Spike Counting w/ Histcounts
 binDur = [BinEdge(2) - BinEdge(1), BinEdge(4) - BinEdge(3)]; % Bin Duration [Spontaneous, Evoked] -> Divisor when calculating Firing Rate later (Spikes/Period)
-ExclWindowSRate = [vecStimOnSecs'-1 vecStimOnSecs'-0.1]; % Excl. 1s-100ms before stimulus onset -> Remove artefact
 n_trials = numel(vecStimOnSecs); % Number of Trials
 
 % -- Prep Analysis pt 2. --
 dblBinDur = 5e-3; % Binsize of PSTH
 vecTime = -0.2:dblBinDur:1.2; % PSTH X-Axis range/binsize
-indExcludeOn = vecTime > -2* dblBinDur & vecTime < 2*dblBinDur; % First millisecond before and after stim onset
-indExcludeOff = vecTime > (1+ -2* dblBinDur) & vecTime < (1+ 2*dblBinDur); % Ms before and after stim offset
+indExcludeOn = vecTime > -0.045 & vecTime < -0.015; % Exclude between -0.045 and -0.015 before stim onset (15ms before and after laser onset)
+indExcludeOff = vecTime > 0.95 & vecTime < 0.98; % Ms before and after stim offset
 indExclude = [find(indExcludeOn) find(indExcludeOff)];
 sOptions.handleFig = -1;
 
 % -- Start Loop --
-for intCh = 1:length(sAP.sCluster) % For each cluster:
-    vecSpikes = sAP.sCluster(intCh).SpikeTimes;
+for intCl = 1:length(sAP.sCluster) % For each cluster:
+    vecSpikes = sAP.sCluster(intCl).SpikeTimes;
     dblZetaP = zetatest(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto -> Visually responsive neurons
-    if dblZetaP < 0.01 && ismember(sAP.sCluster(intCh).Area, vecROI) %&& sAP.sCluster(intCh).Violations1ms < 0.25 %&& abs(sCluster(intCh).NonStationarity) < 0.25
+    if dblZetaP < 0.01 && ismember(sAP.sCluster(intCl).Area, vecROI) %&& sAP.sCluster(intCh).Violations1ms < 0.25 %&& abs(sCluster(intCh).NonStationarity) < 0.25
         % -- Analysis pt 1.  Opto vs No-Opto --
         sCounts_Opto = zeros(numel(vecStimOnSecs),2);
         for intTrial=1:n_trials
@@ -147,7 +150,7 @@ for intCh = 1:length(sAP.sCluster) % For each cluster:
         vecMean_On(indExclude) = NaN;
         
         % -- Write to Vectors --
-        ClusterN = [ClusterN; intCh];
+        ClusterN = [ClusterN; intCl];
         zeta_p = [zeta_p; dblZetaP];
         SpontRate = [SpontRate; SpontRate_Cl];
         ER_OptoOn = [ER_OptoOn; EvokedRate_OptoOn];
@@ -162,64 +165,29 @@ for intCh = 1:length(sAP.sCluster) % For each cluster:
         PSTHMean_Off = [PSTHMean_Off; vecMean_Off - SpontRate_Cl];
         PSTHSEM_Off = [PSTHSEM_Off; vecSEM_Off];
         PSTHBinCenters_Off = [PSTHBinCenters_Off; vecWindowBinCenters_Off];
-        Area = [Area; string(sAP.sCluster(intCh).Area)];
+        Area = [Area; string(sAP.sCluster(intCl).Area)];
     else
         continue
     end
 end
 
-%% Analysis pt 3: Overall Values per Recording
+%% Write Output
 
 n_clusters = numel(ClusterN);
 
-RecOverall.NCells = numel(ClusterN);
-RecOverall.NCells_Reduced = sum((p_val < 0.01) & PctChange < 0);
-RecOverall.MeanPctReduction = mean(PctChange(PctChange < 0)); % 
-RecOverall.NCells_Increased = sum((p_val < 0.01) & PctChange > 0);
-RecOverall.MeanPctIncrease = mean(PctChange((p_val<0.01) & (PctChange > 0)));
-RecOverall.ER_OptoOn = mean(ER_OptoOn);
-RecOverall.ER_OptoOff = mean(ER_OptoOff);
-RecOverall.SE_OptoOn = std(ER_OptoOn, [], 1)/sqrt(n_clusters);
-RecOverall.SE_OptoOff = std(ER_OptoOff, [], 1)/sqrt(n_clusters);
-[~, RecOverall.p_val] = ttest(ER_OptoOn, ER_OptoOff, 'Alpha', 0.01);
-
-% Non-Normalized PSTH Values
-norm = max(PSTHMean_Off,[],2);
-RecOverall.PSTHMean_Off = mean(PSTHMean_Off, 1);
-RecOverall.PSTHSEM_Off = std(PSTHMean_Off, 1)/sqrt(n_clusters);
-RecOverall.PSTHMean_On = mean(PSTHMean_On, 1);
-RecOverall.PSTHSEM_On = std(PSTHMean_On, 1)/sqrt(n_clusters);
-
-%Normalized PSTH Values
-norm = max(PSTHMean_Off,[],2);
-RecOverall.PSTHMean_Off_norm = mean(PSTHMean_Off./norm, 1);
-RecOverall.PSTHSEM_Off_norm = std(PSTHMean_Off./norm, 1)/sqrt(n_clusters);
-RecOverall.PSTHMean_On_norm = mean(PSTHMean_On./norm, 1);
-RecOverall.PSTHSEM_On_norm = std(PSTHMean_On./norm, 1)/sqrt(n_clusters);
-RecOverall.PSTHBinSize = 5e-3; % Binsize of PSTH
-RecOverall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
-RecOverall.PSTHBinCenters = PSTHBinCenters_On(1,:);
-
-
-%% Write Output
-
 % Write Table (Subject)
-RecData.ClusterData = table(ClusterN, zeta_p, Area, SpontRate, ER_OptoOff, ...
+ClusterData_Rec = table(ClusterN, zeta_p, Area, SpontRate, ER_OptoOff, ...
     ER_OptoOn, SE_OptoOff, SE_OptoOn, PctChange, p_val, PSTHMean_Off, ...
     PSTHSEM_Off, PSTHBinCenters_Off, PSTHMean_On, PSTHSEM_On, ...
     PSTHBinCenters_On);
 
 % Overall Subject Data
-RecData.OverallData = RecOverall;
+% RecData.OverallData = RecOverall;
 
 % Add to DataOut
 SubjectN = table(repmat(RecData.Subject, [n_clusters 1]), 'VariableNames', {'Subject'});
 RecDate = cell2table(repmat({sAP.sJson.date}', [n_clusters 1]), 'VariableNames', {'RecDate'});
-% ADD CHANNEL DEPTH!
-DataOut_OG.AllMice.ClusterData = [DataOut_OG.AllMice.ClusterData; [SubjectN RecDate RecData.ClusterData]];
-
-RecordingName = [replace(sAP.sJson.experiment(1:end-6),'-','_')];
-DataOut_OG.(RecordingName) = RecData;
+DataOut_OG.ClusterData = [DataOut_OG.AllMice.ClusterData; [SubjectN RecDate RecData.ClusterData]];
 
 end
 
