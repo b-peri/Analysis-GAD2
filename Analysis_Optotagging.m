@@ -8,7 +8,7 @@
 
 % [] Tweak inclusion window GAD2+ cells (REMOVE: -1ms - 6ms around LASER
 % ON; AND () around LASER OFF!!)
-% [] Fix 
+% [] Add presence ratio as general incl. criterion
 
 %% Load in Data
 
@@ -277,25 +277,11 @@ DataOut_OT.Overall.PSTHBinSize = dblBinDur; % Binsize of PSTH
 DataOut_OT.Overall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
 DataOut_OT.Overall.PSTHBinCenters = PSTHBinCenters(1,:);
 
-%%
+%% Save Output
 
-clearvars -except DataOut_OT DataOut_OG DataOut_OGt
-
-if any(startsWith(string(fieldnames(DataOut_OT)),'Rec7'))
-    SaveFile = ['DataOut_Optotagging_' datestr(datetime("today"),"dd-mm-yy") '_GAD2' '.mat'];
-elseif any(startsWith(string(fieldnames(DataOut_OT)),'Rec8'))
-    SaveFile = ['DataOut_Optotagging_' datestr(datetime("today"),"dd-mm-yy") '_Control' '.mat'];
+if all(startsWith(string(DataOut_OT.ClusterData.Subject),'7'))
+    SaveFile = ['DataOut_Optotagging_' datestr(datetime("today"),"dd-mm-yy") '.mat'];
+    save(SaveFile, 'DataOut_OT');
 end
-save(SaveFile, 'DataOut_OT');
 
-% st = sAP.sCluster(234).SpikeTimes;
-% 
-% stim = vecLaserOnSecs(pulseDurTrial == 0.02) - 0.1;
-% 
-% maxDur = 0.2;
-% 
-% figure; hold on
-% plotRaster(st,stim,maxDur); xline(0.1, 'r--'); xline(0.101, 'b--');
-% xline(0.110, 'g--'); xline(0.130, 'g--'); fixfig
-% 
-% figure; plot(PSTHBinCenters_20ms_Cl, PSTHMean_20ms_Cl);
+clearvars -except DataOut_OT DataOut_OG_GAD2 DataOut_OG_Cont DataOut_OGt
