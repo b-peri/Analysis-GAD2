@@ -130,38 +130,8 @@ Oth_PSTH.PSTHSEM_On_z = std(Oth_PSTH_on_z)./sqrt(height(Oth_PSTH_on_z));
 
 Oth_PSTH.PSTHBinCenters = test_Oth.PSTHBinCenters(1,:);
 
-% Normalized PSTH Values Untagged
-% nClust_Un = height(test_Un);
-% norm_Un = max(test_Un.PSTHMean_Off,[],2);
-% test_Un_PSTH.PSTHMean_Off_norm = mean(test_Un.PSTHMean_Off./norm_Un, 1);
-% test_Un_PSTH.PSTHSEM_Off_norm = std(test_Un.PSTHMean_Off./norm_Un, 1)/sqrt(nClust_Un);
-% test_Un_PSTH.PSTHMean_On_norm = mean(test_Un.PSTHMean_On./norm_Un, 1);
-% test_Un_PSTH.PSTHSEM_On_norm = std(test_Un.PSTHMean_On./norm_Un, 1)/sqrt(nClust_Un);
-% test_Un_PSTH.PSTHBinCenters = test_Un.PSTHBinCenters(1,:);
+% --- Normalized PSTH Values (Baseline-Subtracted & ...) ---
+nClust = height(test);
+norm = max(test.PSTHMean_Off,[],2);
+PSTHMean_Off_norm = (test.PSTHMean_Off - test.SpontRate)./norm;
 
-% % Normalized PSTH Values Activated
-% nClust_Act = height(test_Act);
-% norm_Act = max(test_Act.PSTHMean_Off,[],2);
-% test_Act_PSTH.PSTHMean_Off_norm = mean(test_Act.PSTHMean_Off./norm_Act, 1);
-% test_Act_PSTH.PSTHSEM_Off_norm = std(test_Act.PSTHMean_Off./norm_Act, 1)/sqrt(nClust_Act);
-% test_Act_PSTH.PSTHMean_On_norm = mean(test_Act.PSTHMean_On./norm_Act, 1);
-% test_Act_PSTH.PSTHSEM_On_norm = std(test_Act.PSTHMean_On./norm_Act, 1)/sqrt(nClust_Act);
-% test_Act_PSTH.PSTHBinCenters = test_Act.PSTHBinCenters(1,:);
-% 
-% % Normalized PSTH Values Inhibited
-% nClust_Inh = height(test_Inh);
-% norm_Inh = max(test_Inh.PSTHMean_Off,[],2);
-% test_Inh_PSTH.PSTHMean_Off_norm = mean(test_Inh.PSTHMean_Off./norm_Inh, 1);
-% test_Inh_PSTH.PSTHSEM_Off_norm = std(test_Inh.PSTHMean_Off./norm_Inh, 1)/sqrt(nClust_Inh);
-% test_Inh_PSTH.PSTHMean_On_norm = mean(test_Inh.PSTHMean_On./norm_Inh, 1);
-% test_Inh_PSTH.PSTHSEM_On_norm = std(test_Inh.PSTHMean_On./norm_Inh, 1)/sqrt(nClust_Inh);
-% test_Inh_PSTH.PSTHBinCenters = test_Inh.PSTHBinCenters(1,:);
-% 
-% % Normalized PSTH Values Other
-% nClust_Oth = height(test_Oth);
-% norm_Oth = max(test_Oth.PSTHMean_Off,[],2);
-% test_Oth_PSTH.PSTHMean_Off_norm = mean(test_Oth.PSTHMean_Off./norm_Oth, 1);
-% test_Oth_PSTH.PSTHSEM_Off_norm = std(test_Oth.PSTHMean_Off./norm_Oth, 1)/sqrt(nClust_Oth);
-% test_Oth_PSTH.PSTHMean_On_norm = mean(test_Oth.PSTHMean_On./norm_Oth, 1);
-% test_Oth_PSTH.PSTHSEM_On_norm = std(test_Oth.PSTHMean_On./norm_Oth, 1)/sqrt(nClust_Oth);
-% test_Oth_PSTH.PSTHBinCenters = test_Oth.PSTHBinCenters(1,:);

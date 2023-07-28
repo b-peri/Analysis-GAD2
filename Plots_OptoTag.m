@@ -1,190 +1,140 @@
 % Plots for Optotagging 
-DOT = DataOut_OT.Overall;
+DOT = DataOut_OT_50ms.Overall;
 
-GadTab = DataOut_OT.ClusterData(DataOut_OT.ClusterData.CellClass == "GAD2+",:);
-ActTab = DataOut_OT.ClusterData(DataOut_OT.ClusterData.CellClass == "Activated",:);
-InhTab = DataOut_OT.ClusterData(DataOut_OT.ClusterData.CellClass == "Inhibited",:);
+GadTab = DataOut_OT_50ms.ClusterData(DataOut_OT_50ms.ClusterData.CellClass == "GAD2+",:);
+ActTab = DataOut_OT_50ms.ClusterData(DataOut_OT_50ms.ClusterData.CellClass == "Activated",:);
+InhTab = DataOut_OT_50ms.ClusterData(DataOut_OT_50ms.ClusterData.CellClass == "Inhibited",:);
 
-%% Fig 3 A-C: Individual Plots - Raster & Instantaneous FR Plot
+%% Colors
+
+cols.off = [0 0 0];
+cols.GAD2 = [0 0.4470 0.7410];
+cols.Act = [0.8500 0.3250 0.0980];
+cols.Inh = [0.9290 0.6940 0.1250];
+% cols.Oth
+cols.xline = [143 143 143]/255;
+cols.xreg = [200 200 200]/255;
+cols.xreg2 = [184 202 214]/255;
+cols.err_bar = [26 35 126]/255;
+
+figure;
+%% Fig 3A-C: Example RasterPlots
 
 pulseSelect = 0.05
 
-% -- A. GAD2 Cell Raster & Instantaneous FR (PSTHish) --
-% RasterPlot (79159_20230426: 446, 473)
-cell_sel_gad = [(GadTab.Subject + "_" + GadTab.RecDate + "_AP.mat") GadTab.ClusterN];
+% --- GAD2+ Cell ---
+sAP = load("79155_20230512_AP.mat"); sAP = sAP.sAP;
+GAD2_Ex = 353;
 
-figure; 
-for i = 1:length(cell_sel_gad)
-    sAP = load(cell_sel_gad(i,1)); sAP = sAP.sAP;
-    GAD2_Ex = str2double(cell_sel_gad(i,2));
-    
-    st = sAP.sCluster(GAD2_Ex).SpikeTimes;
-    stim = sAP.cellBlock{1, 3}.vecLaserOnTime(sAP.cellBlock{1, 3}.PulseDurTrial == pulseSelect) - 0.1;
-    maxDur = 0.2;
-    
-    % RasterPlot
-    subplot(3,length(cell_sel_gad),i); hold on;
-    plotRaster(st,stim,maxDur); xline(0.1, 'r--'); xline(0.101, 'b--');
-    xline(0.110, 'g--'); xline(0.130, 'g--');
-    title(GadTab(i,:).Subject + "; Cl: " + cell_sel_gad(i,2) + " Pulse: " + pulseSelect);
-    fixfig; hold off;
-    % IFR
-    subplot(3,length(cell_sel_gad),i+length(cell_sel_gad)); hold on;
-    plot(GadTab(i,:).IFR_Time{:}, GadTab(i,:).IFR_Rate{:});
-    fixfig; hold off;
-    % Average Waveform
-    % subplot(3,length(cell_sel_gad),i+6); hold on;
-    % plot(sAP.sCluster(GAD2_Ex).Waveform);
-    % fixfig; hold off;
-    subplot(3,length(cell_sel_gad),i+(length(cell_sel_gad)*2)); hold on;
-    histogram((sAP.sCluster(GAD2_Ex).SpikeTimes),100)
-    xline(sAP.cellBlock{2}.vecStimOnTime(1),'r-')
-    xline(sAP.cellBlock{2}.vecStimOffTime(end),'r-')
-end
+st = sAP.sCluster(GAD2_Ex).SpikeTimes;
+stim = sAP.cellBlock{1, 3}.vecLaserOnTime(sAP.cellBlock{1, 3}.PulseDurTrial == pulseSelect) - 0.05;
+maxDur = 0.15;
 
-% B. Activated/Disinhibited Cell
-cell_sel_Act = [(ActTab.Subject + "_" + ActTab.RecDate + "_AP.mat") ActTab.ClusterN];
+subplot(3,3,1); hold on;
+plotRaster(st,stim,maxDur, [], cols.GAD2);
+xregion(0.05, pulseSelect+0.05, 'FaceColor', cols.xreg) % xline(0.060, 'g--'); xline(0.080, 'g--');
+xticks([0 0.05 0.1 0.15]);
+xticklabels(["-0.05" "0" "0.05" "0.1"]);
+xlabel('Time from laser onset (s)');
+% title(string(sAP.sJson.subject) + " Cl: " + string(GAD2_Ex) + " Pulse: " + pulseSelect);
+title("GAD2+");
+fixfig; hold off;
 
-for i = 1:length(cell_sel_Act)
-    sAP = load(cell_sel_Act(i,1)); sAP = sAP.sAP;
-    Act_Ex = str2double(cell_sel_Act(i,2));
-    
-    st = sAP.sCluster(Act_Ex).SpikeTimes;
-    stim = sAP.cellBlock{1, 3}.vecLaserOnTime(sAP.cellBlock{1, 3}.PulseDurTrial == pulseSelect) - 0.1;
-    maxDur = 0.2;
-    
-    figure; subplot(3,1,1); hold on;
-    plotRaster(st,stim,maxDur); xline(0.1, 'r--'); xline(0.101, 'b--');
-    xline(0.110, 'g--'); xline(0.130, 'g--');
-    title(ActTab(i,:).Subject + "; Cl: " + cell_sel_Act(i,2) + " Pulse: " + pulseSelect);
-    fixfig; hold off;
-    % IFR
-    subplot(3,1,2); hold on;
-    plot(ActTab(i,:).IFR_Time{:}, ActTab(i,:).IFR_Rate{:});
-    fixfig; hold off;
-    % Average Waveform
-    subplot(3,1,3); hold on;
-    histogram((sAP.sCluster(Act_Ex).SpikeTimes),100)
-    xline(sAP.cellBlock{2}.vecStimOnTime(1),'r-')
-    xline(sAP.cellBlock{2}.vecStimOffTime(end),'r-')
-end
+% --- Inh Cell ---
+sAP = load("79154_20230511_AP.mat"); sAP = sAP.sAP;
+Inh_Ex = 446;
 
-% C. Inhibited Cell
+st = sAP.sCluster(Inh_Ex).SpikeTimes;
+stim = sAP.cellBlock{1, 3}.vecLaserOnTime(sAP.cellBlock{1, 3}.PulseDurTrial == pulseSelect) - 0.05;
+maxDur = 0.15;
 
-cell_sel_Inh = [(InhTab.Subject + "_" + InhTab.RecDate + "_AP.mat") InhTab.ClusterN];
+subplot(3,3,4); hold on;
+plotRaster(st,stim,maxDur, [], cols.Inh); 
+xregion(0.05, pulseSelect+0.05, 'FaceColor', cols.xreg);
+xticks([0 0.05 0.1 0.15]);
+xticklabels(["-0.05" "0" "0.05" "0.1"]);
+xlabel('Time from laser onset (s)');
+% title(string(sAP.sJson.subject) + " Cl: " + string(Inh_Ex) + " Pulse: " + pulseSelect);
+title("Inhibited");
+fixfig; hold off;
 
-for i = 1:length(cell_sel_Inh)
-    sAP = load(cell_sel_Inh(i,1)); sAP = sAP.sAP;
-    Inh_Ex = str2double(cell_sel_Inh(i,2));
-    
-    st = sAP.sCluster(Inh_Ex).SpikeTimes;
-    stim = sAP.cellBlock{1, 3}.vecLaserOnTime(sAP.cellBlock{1, 3}.PulseDurTrial == pulseSelect) - 0.1;
-    maxDur = 0.2;
-    
-    figure; subplot(3,1,1); hold on;
-    plotRaster(st,stim,maxDur); xline(0.1, 'r--'); xline(0.101, 'b--');
-    xline(0.110, 'g--'); xline(0.130, 'g--');
-    title(InhTab(i,:).Subject + "; Cl: " + cell_sel_Inh(i,2) + " Pulse: " + pulseSelect);
-    fixfig; hold off;
-    % IFR
-    subplot(3,1,2); hold on;
-    plot(InhTab(i,:).PSTHBinCenters, InhTab(i,:).PSTHMean_20ms);
-    fixfig; hold off;
-    % Histogram Over Whole Rec.
-    subplot(3,1,3); hold on;
-    histogram((sAP.sCluster(Inh_Ex).SpikeTimes),100)
-    xline(sAP.cellBlock{2}.vecStimOnTime(1),'r-')
-    xline(sAP.cellBlock{2}.vecStimOffTime(end),'r-')
-end
+% --- Act Cell ---
+sAP = load("79159_20230426_AP.mat"); sAP = sAP.sAP;
+Act_Ex = 377;
+
+st = sAP.sCluster(Act_Ex).SpikeTimes;
+stim = sAP.cellBlock{1, 3}.vecLaserOnTime(sAP.cellBlock{1, 3}.PulseDurTrial == pulseSelect) - 0.05;
+maxDur = 0.15;
+
+subplot(3,3,7); hold on;
+plotRaster(st,stim,maxDur, [], cols.Act);
+xregion(0.05, pulseSelect+0.05, 'FaceColor', cols.xreg);
+xticks([0 0.05 0.1 0.15]);
+xticklabels(["-0.05" "0" "0.05" "0.1"]);
+xlabel('Time from laser onset (s)');
+% title(string(sAP.sJson.subject) + " Cl: " + string(Act_Ex) + " Pulse: " + pulseSelect);
+title("Activated");
+fixfig; hold off;
 
 %% Fig 3 D-E: Overall Plots
 
-% Heatmap (-0.05s - 0.1s); Organized by 1. GAD2, 2. Inhibited, 3.
-
 BinCenters = DOT.PSTHBinCenters(1,:);
-excl_idx = (BinCenters > -0.001 & BinCenters < 0.006) | (BinCenters > 0.047 & BinCenters < 0.053);
+excl_idx = (BinCenters > -0.001 & BinCenters < 0.002) | (BinCenters > 0.049 & BinCenters < 0.052);
 
-GadTab_PSTH_z = ((GadTab.PSTHMean_20ms - GadTab.SpontRate)./GadTab.SpontRate_STD);
-ActTab_PSTH_z = ((ActTab.PSTHMean_20ms - ActTab.SpontRate)./ActTab.SpontRate_STD);
-InhTab_PSTH_z = ((InhTab.PSTHMean_20ms - InhTab.SpontRate)./InhTab.SpontRate_STD);
+% Heatmap (-0.05s - 0.1s); Organized by 1. GAD2, 2. Inhibited, 3. Activated
+ReorderedTab = [GadTab; InhTab; ActTab];
+PSTH_BL = ReorderedTab.PSTHMean - ReorderedTab.SpontRate;
+PSTH_norm = PSTH_BL./max(PSTH_BL,[],2);
+PSTH_norm(:,excl_idx) = NaN;
+subplot(2,3,[2 3]); imagesc(PSTH_norm);
+colormap('bone');
+colorbar(gca);
+y_label = ylabel('Neuron #');
+y_label.Position(1) = 23;
+set(gca, 'YTick', []);
+xticks([1 26 51 76 100]);
+xticklabels(["-0.1" "-0.05" "0" "0.05" "0.1"]);
+xlim([26 100]);
+xlabel('Time from laser onset (s)');
+annotation('rectangle',[0.4 0.88 0.0075 0.045], 'FaceColor', cols.GAD2, 'LineStyle', 'none')
+annotation('rectangle',[0.4 0.675 0.0075 0.202], 'FaceColor', cols.Inh, 'LineStyle', 'none')
+annotation('rectangle',[0.4 0.585 0.0075 0.088], 'FaceColor', cols.Act, 'LineStyle', 'none')
 
-% for i = 1:8
-%     figure; hold on
-%     bar(InhTab_PSTH_z(i,:))
-%     yline(-1,'r')
-% end
+% PSTH (Baseline-Subtracted; Norm. to Peak)
+PSTHMean_GAD2_norm = DOT.PSTHMean_GAD2_norm;
+PSTHMean_GAD2_norm(excl_idx) = NaN;
+PSTHSEM_GAD2_norm = DOT.PSTHSEM_GAD2_norm;
+PSTHSEM_GAD2_norm(excl_idx) = NaN;
 
-ReorderedPSTH = [GadTab_PSTH_z; InhTab_PSTH_z; ActTab_PSTH_z];
-ReorderedPSTH(:,excl_idx) = NaN;
-figure; imagesc(ReorderedPSTH); yline(2)
+PSTHMean_Inh_norm = DOT.PSTHMean_Inh_norm;
+PSTHMean_Inh_norm(excl_idx) = NaN;
+PSTHSEM_Inh_norm = DOT.PSTHSEM_Inh_norm;
+PSTHSEM_Inh_norm(excl_idx) = NaN;
 
-% 
-% figure; hold on;
-% plot(DOT.Overall.PSTHBinCenters, DOT.Overall.PSTHMean_20ms_GAD2);
-% plot(DOT.Overall.PSTHBinCenters, DOT.Overall.PSTHMean_20ms_Act);
-% plot(DOT.Overall.PSTHBinCenters, DOT.Overall.PSTHMean_20ms_Inh);
-% legend(["GAD2+","Activated","Inhibited"]);
-% ylabel('Mean Response (Z-Score)');
-% xlabel('Time from laser onset (ms)');
-% title('z-scored');
-% hold off;
+PSTHMean_Act_norm = DOT.PSTHMean_Act_norm;
+PSTHMean_Act_norm(excl_idx) = NaN;
+PSTHSEM_Act_norm = DOT.PSTHSEM_Act_norm;
+PSTHSEM_Act_norm(excl_idx) = NaN;
 
-% PSTH Gad2, Inhibited, Activated response dynamics: Z-Scored
-figure; hold on;
-
-PSTHMean_GAD2_z = DOT.PSTHMean_20ms_GAD2_z;
-PSTHMean_GAD2_z(excl_idx) = NaN;
-PSTHSEM_GAD2_z = DOT.PSTHSEM_20ms_GAD2_z;
-PSTHSEM_GAD2_z(excl_idx) = NaN;
-
-PSTHMean_Act_z = DOT.PSTHMean_20ms_Act_z;
-PSTHMean_Act_z(excl_idx) = NaN;
-PSTHSEM_Act_z = DOT.PSTHSEM_20ms_Act_z;
-PSTHSEM_Act_z(excl_idx) = NaN;
-
-PSTHMean_Inh_z = DOT.PSTHMean_20ms_Inh_z;
-PSTHMean_Inh_z(excl_idx) = NaN;
-PSTHSEM_Inh_z = DOT.PSTHSEM_20ms_Inh_z;
-PSTHSEM_Inh_z(excl_idx) = NaN;
-shadedErrorBar(DOT.PSTHBinCenters, PSTHMean_GAD2_z, PSTHSEM_GAD2_z, 'lineProps', {'Color',[0 0.4470 0.7410]});
-shadedErrorBar(DOT.PSTHBinCenters, PSTHMean_Act_z, PSTHSEM_Act_z, 'lineProps', {'Color',[0.8500 0.3250 0.0980]});
-shadedErrorBar(DOT.PSTHBinCenters, PSTHMean_Inh_z, PSTHSEM_Inh_z, 'lineProps', {'Color',[0.9290 0.6940 0.1250]});
-
-
-% shadedErrorBar(DOT.PSTHBinCenters, DOT.PSTHMean_20ms_GAD2_z, DOT.PSTHSEM_20ms_GAD2_z, 'lineProps', {'Color',[0 0.4470 0.7410]});
-% shadedErrorBar(DOT.PSTHBinCenters, DOT.PSTHMean_20ms_Act_z, DOT.PSTHSEM_20ms_Act_z, 'lineProps', {'Color',[0.8500 0.3250 0.0980]});
-% shadedErrorBar(DOT.PSTHBinCenters, DOT.PSTHMean_20ms_Inh_z, DOT.PSTHSEM_20ms_Inh_z, 'lineProps', {'Color',[0.9290 0.6940 0.1250]});
-xlim([-0.1 0.1]);
-% ylim([-0.2 1.2])
-legend(["GAD2+","Activated","Inhibited"]);
-% legend(["Activated","Inhibited"]);
-ylabel('Mean Response (Z-Score)');
+subplot(2,3,[5 6]); hold on;
+shadedErrorBar(DOT.PSTHBinCenters, PSTHMean_GAD2_norm, PSTHSEM_GAD2_norm, 'lineProps', {'Color',cols.GAD2});
+shadedErrorBar(DOT.PSTHBinCenters, PSTHMean_Inh_norm, PSTHSEM_Inh_norm, 'lineProps', {'Color',cols.Inh});
+shadedErrorBar(DOT.PSTHBinCenters, PSTHMean_Act_norm, PSTHSEM_Act_norm, 'lineProps', {'Color',cols.Act});
+xregion(0,pulseSelect,"FaceColor",cols.xreg,"LineStyle","none");
+ylim([-0.2 1.2]);
+xticks([-0.1 -0.05 0 0.05 0.1]);
+xlim([-0.05 0.1]);
+legend(["GAD2+ (N = "+height(GadTab)+")", "Inhibited (N = "+height(InhTab)+")", "Activated (N = "+height(ActTab)+")"]);
+ylabel('Mean Response (Norm. to Peak)');
 xlabel('Time from laser onset (ms)');
-title('Z-Scored');
+% title('BL-Subtracted and Normalized to Peak');
 fixfig; hold off;
 
-% Baseline-Corrected
-figure; hold on;
-plot(DOT.PSTHBinCenters, DOT.PSTHMean_20ms_GAD2_norm);
-plot(DOT.PSTHBinCenters, DOT.PSTHMean_20ms_Act_norm);
-plot(DOT.PSTHBinCenters, DOT.PSTHMean_20ms_Inh_norm);
-xlim([-0.1 0.1]);
-ylim([-0.2 1.2])
-legend(["GAD2+","Activated","Inhibited"]);
-ylabel('Mean Response (Normalized to Peak)');
-xlabel('Time from laser onset (ms)');
-title('BL-Subtracted and Normalized to Peak');
-fixfig; hold off;
+%% Save Figure
 
-%% Boxplots Latency
+saveas(gcf, 'C:\Software and Code\Analysis-GAD2\Plots\Figure2.png');
+savefig(gcf, 'C:\Software and Code\Analysis-GAD2\Plots\Figure2.fig');
 
-% [] -> Ask Robin about whether boxplot is the most appropriate way to
-% demonstrate this point given that N is so small
-
-figure;hold on;
-
-boxplot(DataOut_OT.ClusterData.Peak_Lat,DataOut_OT.ClusterData.CellClass);
-xlabel("Peak Latency (s)");
 
 %% Suppl. Figure 1
 

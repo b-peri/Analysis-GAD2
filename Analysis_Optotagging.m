@@ -8,7 +8,6 @@
 
 % [] Tweak inclusion window GAD2+ cells (REMOVE: -1ms - 6ms around LASER
 % ON; AND () around LASER OFF!!)
-% [] Add presence ratio as general incl. criterion
 
 %% Load in Data
 
@@ -19,9 +18,9 @@
 
 DataOut_OT.Overall = struct;
 DataOut_OT.ClusterData = cell2table(cell(0,15), 'VariableNames', ...
-    {'Subject', 'RecDate', 'ClusterN', 'CellClass', 'Area', 'zeta_p_20ms', ...
+    {'Subject', 'RecDate', 'ClusterN', 'CellClass', 'Area', 'zeta_p', ...
     'Peak_Lat', 'IFR_Rate', 'IFR_Time', 'SpontRate', 'SpontRate_STD', ...
-    'PSTHMean_20ms', 'PSTHSEM_20ms', 'PSTHBinCenters', 'NonStationarity'});
+    'PSTHMean', 'PSTHSEM', 'PSTHBinCenters', 'NonStationarity'});
 
 %% Start Loop
 
@@ -56,15 +55,15 @@ RecN = sAP.sJson.date;
 ClusterN = [];
 CellClass = [];
 Area = [];
-zeta_p_20ms = [];
+zeta_p = [];
 Peak_Lat = [];
 IFR_Rate = [];
 IFR_Time = [];
 SpontRate = [];
 SpontRate_STD = [];
 
-PSTHMean_20ms = [];
-PSTHSEM_20ms = [];
+PSTHMean = [];
+PSTHSEM = [];
 PSTHBinCenters = [];
 
 NonStationarity = [];
@@ -79,7 +78,7 @@ vecROI = ["Superior colliculus zonal layer" "Superior colliculus" + ...
     "Superior colliculus motor related intermediate gray layer"];
 
 % --- Select Pulse Duration ---
-pulseSelect = 0.05;
+pulseSelect = 0.01;
 
 % --- Prep Overall Modulation (Baseline vs. Evoked) ---
 % Spontaneous Rate = Mean rate in -1s - -100ms before stim onset
@@ -103,18 +102,22 @@ for intCl = 1:intNumClu
         if dblZetaP >= 0.01
             continue;
         end
-        peakWin = [0.499 0.506];
+        peakWin_on = [0.499 0.501];
+        peakWin_off = [peakWin_on(1)+pulseSelect peakWin_on(2)+pulseSelect];
         % PeakMax = max(sRate.vecRate(sRate.vecT < peakWin(1) | sRate.vecT > peakWin(2)));
         % PeakMin = min(sRate.vecRate(sRate.vecT < peakWin(1) | sRate.vecT > peakWin(2)));
-        [~,indPeak] = max(sRate.vecRate(sRate.vecT < peakWin(1) | sRate.vecT > peakWin(2)));
-        vecT_short = sRate.vecT(sRate.vecT < peakWin(1) | sRate.vecT > peakWin(2));
+        vecRate_Filt = sRate.vecRate((sRate.vecT < peakWin_on(1) | sRate.vecT > peakWin_on(2)) ...
+            & (sRate.vecT < peakWin_off(1) | sRate.vecT > peakWin_off(2)));
+        [~,indPeak] = max(vecRate_Filt);
+        vecT_short = sRate.vecT((sRate.vecT < peakWin_on(1) | sRate.vecT > peakWin_on(2)) ...
+            & (sRate.vecT < peakWin_off(1) | sRate.vecT > peakWin_off(2)));
                 PeakLat_Cl = vecT_short(indPeak);
         RFmap_times = [sAP.cellBlock{2}.vecStimOnTime(1) sAP.cellBlock{2}.vecStimOffTime(end)];
         spikesRF = sum(vecSpikeTimes > RFmap_times(1) & vecSpikeTimes < RFmap_times(2));
         % [dblPeakValue,dblPeakTime,dblPeakWidth,vecPeakStartStop,intPeakLoc,vecPeakStartStopIdx] = getPeak(sRate.vecRate,sRate.vecT,[sRate.vecT > peakWin(2)],intSwitchZ)
 
         % --- Classify Clusters ---
-        if isempty(PeakLat_Cl) | (PeakLat_Cl < 0.506) | spikesRF == 0 %| (PeakLat_Cl > 0.530)
+        if isempty(PeakLat_Cl) | (PeakLat_Cl < peakWin_on(2)) | spikesRF == 0 %| (PeakLat_Cl > 0.530)
             continue;
         elseif (PeakLat_Cl < 0.51)
             % --- Get SpontRate_Cl for GAD2+ neuron ---
@@ -145,15 +148,15 @@ for intCl = 1:intNumClu
             % Mean Spontaneous & Evoked Rates
             SpontRate_Cl = mean(sRate_ER(:,1));
             SpontRate_STD_Cl = std(sRate_ER(:,1));
-            EvokedRate_20ms_Cl = mean(sRate_ER(pulseDurTrial == pulseSelect,2));
+            EvokedRate_Cl = mean(sRate_ER(pulseDurTrial == pulseSelect,2));
             
             % T-tests
-            [~,p_val_20ms_Cl] = ttest(sRate_ER(pulseDurTrial == pulseSelect,2), sRate_ER(pulseDurTrial == pulseSelect,1), 'Alpha', 0.01);
+            [~,p_val_Cl] = ttest(sRate_ER(pulseDurTrial == pulseSelect,2), sRate_ER(pulseDurTrial == pulseSelect,1), 'Alpha', 0.01);
             
             % Simple Classification for Now
-            if (p_val_20ms_Cl < 0.01) && (EvokedRate_20ms_Cl > SpontRate_Cl)
+            if (p_val_Cl < 0.01) && (EvokedRate_Cl > SpontRate_Cl)
                 CellClass_Cl = "Activated";
-            elseif (p_val_20ms_Cl < 0.01) && (EvokedRate_20ms_Cl < SpontRate_Cl);
+            elseif (p_val_Cl < 0.01) && (EvokedRate_Cl < SpontRate_Cl);
                 CellClass_Cl = "Inhibited";
             else
                 CellClass_Cl = "Other";
@@ -161,13 +164,13 @@ for intCl = 1:intNumClu
         end
 
         % --- PSTH ---
-        [PSTHMean_20ms_Cl,PSTHSEM_20ms_Cl,PSTHBinCenters_20ms_Cl,~] = doPEP({vecSpikeTimes},vecTime,vecLaserOnSecs(pulseDurTrial == pulseSelect),sOptions);
+        [PSTHMean_Cl,PSTHSEM_Cl,PSTHBinCenters_Cl,~] = doPEP({vecSpikeTimes},vecTime,vecLaserOnSecs(pulseDurTrial == pulseSelect),sOptions);
 
         % --- Export Cluster Data ---
 
         ClusterN = [ClusterN; intCl];
         Area = [Area; string(sAP.sCluster(intCl).Area)];
-        zeta_p_20ms = [zeta_p_20ms; dblZetaP];
+        zeta_p = [zeta_p; dblZetaP];
         CellClass = [CellClass; CellClass_Cl];
         Peak_Lat = [Peak_Lat; PeakLat_Cl - 0.5];
         IFR_Rate = [IFR_Rate; {sRate.vecRate}];
@@ -176,9 +179,9 @@ for intCl = 1:intNumClu
         SpontRate_STD = [SpontRate_STD; SpontRate_STD_Cl];
         
         % PSTH Vals 20ms
-        PSTHMean_20ms = [PSTHMean_20ms; PSTHMean_20ms_Cl];
-        PSTHSEM_20ms = [PSTHSEM_20ms; PSTHSEM_20ms_Cl];
-        PSTHBinCenters = [PSTHBinCenters; PSTHBinCenters_20ms_Cl];
+        PSTHMean = [PSTHMean; PSTHMean_Cl];
+        PSTHSEM = [PSTHSEM; PSTHSEM_Cl];
+        PSTHBinCenters = [PSTHBinCenters; PSTHBinCenters_Cl];
 
         NonStationarity = [NonStationarity; sAP.sCluster(intCl).NonStationarity];
     else
@@ -204,9 +207,9 @@ end
 %% Write RecData to Overall Table
 
 % Write Table (Subject)
-% RecData.ClusterData = table(ClusterN, CellClass, Area, zeta_p_20ms, ...
-    % Peak_Lat, IFR_Rate, IFR_Time, SpontRate, SpontRate_STD, PSTHMean_20ms, ...
-    % PSTHSEM_20ms, PSTHBinCenters, NonStationarity);
+% RecData.ClusterData = table(ClusterN, CellClass, Area, zeta_p, ...
+    % Peak_Lat, IFR_Rate, IFR_Time, SpontRate, SpontRate_STD, PSTHMean, ...
+    % PSTHSEM, PSTHBinCenters, NonStationarity);
 
 % Overall Subject Data
 % RecData.OverallData = RecOverall;
@@ -215,9 +218,9 @@ end
 SubjectN = table(repmat(string(sAP.sJson.subject), [numel(ClusterN) 1]), 'VariableNames', {'Subject'});
 RecDate = table(repmat(string(sAP.sJson.date), [numel(ClusterN) 1]), 'VariableNames', {'RecDate'});
 DataOut_OT.ClusterData = [DataOut_OT.ClusterData; [SubjectN ...
-    RecDate table(ClusterN, CellClass, Area, zeta_p_20ms, ...
-    Peak_Lat, IFR_Rate, IFR_Time, SpontRate, SpontRate_STD, PSTHMean_20ms, ...
-    PSTHSEM_20ms, PSTHBinCenters, NonStationarity);]];
+    RecDate table(ClusterN, CellClass, Area, zeta_p, ...
+    Peak_Lat, IFR_Rate, IFR_Time, SpontRate, SpontRate_STD, PSTHMean, ...
+    PSTHSEM, PSTHBinCenters, NonStationarity);]];
 
 % RecordingName = [replace(sAP.sJson.experiment(1:end-6),'-','_')];
 % DataOut_OT.(RecordingName) = RecData;
@@ -238,35 +241,35 @@ DataOut_OT.Overall.NCells_Act = sum(DOT.CellClass == "Activated");
 DataOut_OT.Overall.NCells_Oth = sum(DOT.CellClass == "Other");
 
 % Z-Scored PSTH Values
-zscored_PSTH = ((DOT.PSTHMean_20ms - DOT.SpontRate)./DOT.SpontRate_STD);
+zscored_PSTH = ((DOT.PSTHMean - DOT.SpontRate)./DOT.SpontRate_STD);
 
-DataOut_OT.Overall.PSTHMean_20ms_GAD2_z = mean(zscored_PSTH(DOT.CellClass == "GAD2+",:), 1);
-DataOut_OT.Overall.PSTHSEM_20ms_GAD2_z = std(zscored_PSTH(DOT.CellClass == "GAD2+",:))/sum(DOT.CellClass == "GAD2+");
+DataOut_OT.Overall.PSTHMean_GAD2_z = mean(zscored_PSTH(DOT.CellClass == "GAD2+",:), 1);
+DataOut_OT.Overall.PSTHSEM_GAD2_z = std(zscored_PSTH(DOT.CellClass == "GAD2+",:))/sum(DOT.CellClass == "GAD2+");
 
-DataOut_OT.Overall.PSTHMean_20ms_Inh_z = mean(zscored_PSTH(DOT.CellClass == "Inhibited",:), 1);
-DataOut_OT.Overall.PSTHSEM_20ms_Inh_z = std(zscored_PSTH(DOT.CellClass == "Inhibited",:))/sum(DOT.CellClass == "Inhibited");
+DataOut_OT.Overall.PSTHMean_Inh_z = mean(zscored_PSTH(DOT.CellClass == "Inhibited",:), 1);
+DataOut_OT.Overall.PSTHSEM_Inh_z = std(zscored_PSTH(DOT.CellClass == "Inhibited",:))/sum(DOT.CellClass == "Inhibited");
 
-DataOut_OT.Overall.PSTHMean_20ms_Act_z = mean(zscored_PSTH(DOT.CellClass == "Activated",:), 1);
-DataOut_OT.Overall.PSTHSEM_20ms_Act_z = std(zscored_PSTH(DOT.CellClass == "Activated",:))/sum(DOT.CellClass == "Activated");
+DataOut_OT.Overall.PSTHMean_Act_z = mean(zscored_PSTH(DOT.CellClass == "Activated",:), 1);
+DataOut_OT.Overall.PSTHSEM_Act_z = std(zscored_PSTH(DOT.CellClass == "Activated",:))/sum(DOT.CellClass == "Activated");
 
-DataOut_OT.Overall.PSTHMean_20ms_Oth_z = mean(zscored_PSTH(DOT.CellClass == "Other",:), 1);
-DataOut_OT.Overall.PSTHSEM_20ms_Oth_z = std(zscored_PSTH(DOT.CellClass == "Other",:))/sum(DOT.CellClass == "Other");
+DataOut_OT.Overall.PSTHMean_Oth_z = mean(zscored_PSTH(DOT.CellClass == "Other",:), 1);
+DataOut_OT.Overall.PSTHSEM_Oth_z = std(zscored_PSTH(DOT.CellClass == "Other",:))/sum(DOT.CellClass == "Other");
 
 %Normalized PSTH Values
-PSTHMean_20ms_BL = DOT.PSTHMean_20ms - DOT.SpontRate;
-norm = max(PSTHMean_20ms_BL,[],2);
+PSTHMean_BL = DOT.PSTHMean - DOT.SpontRate;
+norm = max(PSTHMean_BL,[],2);
 
-DataOut_OT.Overall.PSTHMean_20ms_GAD2_norm = mean(PSTHMean_20ms_BL(DOT.CellClass == "GAD2+",:)./norm(DOT.CellClass == "GAD2+"), 1);
-DataOut_OT.Overall.PSTHSEM_20ms_GAD2_norm = std(PSTHMean_20ms_BL(DOT.CellClass == "GAD2+",:)./norm(DOT.CellClass == "GAD2+"), 1)/sqrt(sum(DOT.CellClass == "GAD2+"));
+DataOut_OT.Overall.PSTHMean_GAD2_norm = mean(PSTHMean_BL(DOT.CellClass == "GAD2+",:)./norm(DOT.CellClass == "GAD2+"), 1);
+DataOut_OT.Overall.PSTHSEM_GAD2_norm = std(PSTHMean_BL(DOT.CellClass == "GAD2+",:)./norm(DOT.CellClass == "GAD2+"), 1)/sqrt(sum(DOT.CellClass == "GAD2+"));
 
-DataOut_OT.Overall.PSTHMean_20ms_Inh_norm = mean(PSTHMean_20ms_BL(DOT.CellClass == "Inhibited",:)./norm(DOT.CellClass == "Inhibited"), 1);
-DataOut_OT.Overall.PSTHSEM_20ms_Inh_norm = std(PSTHMean_20ms_BL(DOT.CellClass == "Inhibited",:)./norm(DOT.CellClass == "Inhibited"), 1)/sqrt(sum(DOT.CellClass == "Inhibited"));
+DataOut_OT.Overall.PSTHMean_Inh_norm = mean(PSTHMean_BL(DOT.CellClass == "Inhibited",:)./norm(DOT.CellClass == "Inhibited"), 1);
+DataOut_OT.Overall.PSTHSEM_Inh_norm = std(PSTHMean_BL(DOT.CellClass == "Inhibited",:)./norm(DOT.CellClass == "Inhibited"), 1)/sqrt(sum(DOT.CellClass == "Inhibited"));
 
-DataOut_OT.Overall.PSTHMean_20ms_Act_norm = mean(PSTHMean_20ms_BL(DOT.CellClass == "Activated",:)./norm(DOT.CellClass == "Activated"), 1);
-DataOut_OT.Overall.PSTHSEM_20ms_Act_norm = std(PSTHMean_20ms_BL(DOT.CellClass == "Activated",:)./norm(DOT.CellClass == "Activated"), 1)/sqrt(sum(DOT.CellClass == "Activated"));
+DataOut_OT.Overall.PSTHMean_Act_norm = mean(PSTHMean_BL(DOT.CellClass == "Activated",:)./norm(DOT.CellClass == "Activated"), 1);
+DataOut_OT.Overall.PSTHSEM_Act_norm = std(PSTHMean_BL(DOT.CellClass == "Activated",:)./norm(DOT.CellClass == "Activated"), 1)/sqrt(sum(DOT.CellClass == "Activated"));
 
-DataOut_OT.Overall.PSTHMean_20ms_Oth_norm = mean(PSTHMean_20ms_BL(DOT.CellClass == "Other",:)./norm(DOT.CellClass == "Other"), 1);
-DataOut_OT.Overall.PSTHSEM_20ms_Oth_norm = std(PSTHMean_20ms_BL(DOT.CellClass == "Other",:)./norm(DOT.CellClass == "Other"), 1)/sqrt(sum(DOT.CellClass == "Other"));
+DataOut_OT.Overall.PSTHMean_Oth_norm = mean(PSTHMean_BL(DOT.CellClass == "Other",:)./norm(DOT.CellClass == "Other"), 1);
+DataOut_OT.Overall.PSTHSEM_Oth_norm = std(PSTHMean_BL(DOT.CellClass == "Other",:)./norm(DOT.CellClass == "Other"), 1)/sqrt(sum(DOT.CellClass == "Other"));
 
 DataOut_OT.Overall.PSTHBinSize = dblBinDur; % Binsize of PSTH
 DataOut_OT.Overall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
@@ -275,8 +278,19 @@ DataOut_OT.Overall.PSTHBinCenters = PSTHBinCenters(1,:);
 %% Save Output
 
 if all(startsWith(string(DataOut_OT.ClusterData.Subject),'7'))
-    SaveFile = ['DataOut_Optotagging_' datestr(datetime("today"),"dd-mm-yy") '.mat'];
-    save(SaveFile, 'DataOut_OT');
+    if pulseSelect == 0.05
+        SaveFile = ['DataOut_Optotagging50ms_' datestr(datetime("today"),"dd-mm-yy") '.mat'];
+        DataOut_OT_50ms = DataOut_OT;
+        save(SaveFile, 'DataOut_OT_50ms');
+    elseif pulseSelect == 0.02
+        SaveFile = ['DataOut_Optotagging20ms_' datestr(datetime("today"),"dd-mm-yy") '.mat'];
+        DataOut_OT_20ms = DataOut_OT;
+        save(SaveFile, 'DataOut_OT_20ms');
+    elseif pulseSelect == 0.01
+        SaveFile = ['DataOut_Optotagging10ms_' datestr(datetime("today"),"dd-mm-yy") '.mat'];
+        DataOut_OT_10ms = DataOut_OT;
+        save(SaveFile, 'DataOut_OT_10ms');
+    end
 end
 
-clearvars -except DataOut_OT DataOut_OG_GAD2 DataOut_OG_Cont DataOut_OGt
+clearvars -except DataOut_OT_50ms DataOut_OT_20ms DataOut_OT_10ms DataOut_OG_GAD2 DataOut_OG_Cont DataOut_OGt

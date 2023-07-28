@@ -29,16 +29,16 @@ maxDur = 1.4;
 %Draw Plot
 subplot(4,4,1); hold on;
 plotRasterSplit(st,stim,maxDur,~laser_trials,[cols.on; cols.off]); xline(0.2, '--', 'Color', cols.xline);
-xlim([0 1.4]); xlabel("Time from stimulus onset (s)"); ylabel("Spiking Rate (spks/s)");
-% xline(0.110, 'g--'); xline(0.130, 'g--');
-% title(DataOut_OG_GAD2.ClusterDataDown.Subject(idx) + "; Cl: " + cell_sel(idx,2) + " Opto Off");
+xlim([0 1.4]); xlabel("Time from stim. onset (s)");
+xticks([0.2 0.7 1.2]);
+xticklabels(["0" "0.5" "1"]);
 fixfig; hold off;
 
 % B. PSTH
 subplot(4,4,5); hold on;
 plot(DataOut_OG_GAD2.ClusterDataDown.PSTHBinCenters_Off(idx,:), DataOut_OG_GAD2.ClusterDataDown.PSTHMean_Off(idx,:),'Color', cols.off);
 plot(DataOut_OG_GAD2.ClusterDataDown.PSTHBinCenters_Off(idx,:), DataOut_OG_GAD2.ClusterDataDown.PSTHMean_On(idx,:),'Color',cols.on);
-xlim([-0.2 1.2]); xlabel("Time from stimulus onset (s)")
+xlim([-0.2 1.2]); xlabel("Time from stim. onset (s)"); ylabel("Spiking Rate (spks/s)");
 xline(0, '--', 'Color', cols.xline);
 fixfig; hold off;
 
@@ -58,16 +58,16 @@ maxDur = 1.4;
 %Draw Plot
 subplot(4,4,9); hold on;
 plotRasterSplit(st,stim,maxDur,~laser_trials,[cols.on; cols.off]); xline(0.2, '--', 'Color', cols.xline);
-xlim([0 1.4]); xlabel("Time from stimulus onset (s)");
-% xline(0.110, 'g--'); xline(0.130, 'g--');
-% title(DataOut_OG_GAD2.ClusterDataDown.Subject(idx) + "; Cl: " + cell_sel(idx,2) + " Opto Off");
+xlim([0 1.4]); xlabel("Time from stim. onset (s)");
+xticks([0.2 0.7 1.2]);
+xticklabels(["0" "0.5" "1"]);
 fixfig; hold off;
 
 % B. PSTH
 subplot(4,4,13); hold on;
 plot(DataOut_OG_Cont.ClusterDataNonSig.PSTHBinCenters_Off(idx,:), DataOut_OG_Cont.ClusterDataNonSig.PSTHMean_Off(idx,:),'Color', cols.off);
 plot(DataOut_OG_Cont.ClusterDataNonSig.PSTHBinCenters_Off(idx,:), DataOut_OG_Cont.ClusterDataNonSig.PSTHMean_On(idx,:),'Color',cols.on);
-xlim([-0.2 1.2]); xlabel("Time from stimulus onset (s)"); ylabel('Spiking Rate (Spks/S)');
+xlim([-0.2 1.2]); xlabel("Time from stim. onset (s)"); ylabel('Spiking Rate (spks/s)');
 xline(0, '--', 'Color', cols.xline);
 fixfig; hold off;
 
@@ -82,7 +82,7 @@ shadedErrorBar(DataOut_OG_GAD2.Overall.PSTHBinCenters, DataOut_OG_GAD2.Overall.P
 shadedErrorBar(DataOut_OG_GAD2.Overall.PSTHBinCenters, DataOut_OG_GAD2.Overall.PSTHMean_On_z, DataOut_OG_GAD2.Overall.PSTHSEM_On_z, 'lineProps', {'Color', cols.on});
 xline(0,'--','Color',cols.xline);
 ylabel('Normalized Response (Z-Score)');
-xlabel('Time from stimulus onset (s)');
+xlabel('Time from stim. onset (s)');
 xlim([min(DataOut_OG_GAD2.Overall.PSTHtime) max(DataOut_OG_GAD2.Overall.PSTHtime)]);
 % ylim([-0.1 1]);
 yline(0);
@@ -97,8 +97,8 @@ hold off;
 subplot(2,4,3); hold on;
 scatter(DataOut_OG_GAD2.ClusterData.ER_OptoOff, DataOut_OG_GAD2.ClusterData.ER_OptoOn, 'MarkerEdgeColor', cols.off);
 plot([-20:1:100],[-20:1:100],'--', 'Color', cols.xline); % Reference Line
-% ylim([-15 100]);
-% xlim([-15 100]);
+ylim([-10 150]);
+xlim([-10 50]);
 ylabel('Evoked Rate Opto On (spks/s)');
 xlabel('Evoked Rate Opto Off (spks/s)');
 grid on
@@ -133,8 +133,6 @@ subplot(2,4,4); hold on;
 bar_pl = bar([ER_OptoOff ER_OptoOn],'FaceColor', [cols.off]);
 bar_pl.FaceColor = 'flat';
 bar_pl.CData(2,:) = cols.on;
-% dot_pl = plot([1 2],[DataOut_OG_GAD2.ClusterData.ER_OptoOff DataOut_OG_GAD2.ClusterData.ER_OptoOn],'-','Color',[0, 0, 0, 0.3]);
-% scatter([1 2],[DataOut_OG_GAD2.ClusterData.ER_OptoOff DataOut_OG_GAD2.ClusterData.ER_OptoOn],'MarkerEdgeColor', [0 0 0], 'MarkerEdgeAlpha',0.5);
 bar_err = errorbar([1,2],[ER_OptoOff ER_OptoOn], [SE_OptoOff SE_OptoOn]);
 bar_err.Color = cols.err_bar;
 bar_err.LineStyle = 'none';
@@ -142,6 +140,7 @@ bar_err.LineWidth = 1.25;
 ylabel('Evoked Rate (spks/s)');
 xticks([1 2]);
 xticklabels({"Laser OFF", "Laser ON"});
+ylim([-1 5]);
 fixfig;
 hold off
 
@@ -152,13 +151,11 @@ shadedErrorBar(DataOut_OG_Cont.Overall.PSTHBinCenters, DataOut_OG_Cont.Overall.P
 shadedErrorBar(DataOut_OG_Cont.Overall.PSTHBinCenters, DataOut_OG_Cont.Overall.PSTHMean_On_z, DataOut_OG_Cont.Overall.PSTHSEM_On_z, 'lineProps', {'Color', cols.on});
 xline(0,'--','Color',cols.xline);
 ylabel('Normalized Response (Z-Score)');
-xlabel('Time from stimulus onset (s)');
+xlabel('Time from stim. onset (s)');
 xlim([min(DataOut_OG_Cont.Overall.PSTHtime) max(DataOut_OG_Cont.Overall.PSTHtime)]);
-% ylim([-0.1 1]);
 yline(0);
 text(0.6, 2, sprintf('%g units', DataOut_OG_Cont.Overall.NCells), 'FontSize',15);
 legend('No Opto', 'Opto');
-% title('Mean Response Overall');
 fixfig;
 drawnow;
 hold off;
@@ -188,8 +185,14 @@ bar_err.LineWidth = 1.25;
 ylabel('Evoked Rate (spks/s)');
 xticks([1 2]);
 xticklabels({"Laser OFF", "Laser ON"});
+ylim([-1 5]);
 fixfig;
 hold off
+
+%% Save Figure Output
+
+saveas(gcf, 'C:\Software and Code\Analysis-GAD2\Plots\Figure1.png');
+savefig(gcf, 'C:\Software and Code\Analysis-GAD2\Plots\Figure1.fig');
 
 %% Supplementary Plots for Leonie
 
@@ -209,7 +212,7 @@ hold off
 %     std(PSTHon_Down_z, 1)/sqrt(height(DataOut_OG_GAD2.ClusterDataUp)), 'lineProps', 'b');
 % xline(0,'r--');
 % ylabel('Normalized Response (Z-Score)');
-% xlabel('Time from stimulus onset (s)');
+% xlabel('Time from stim. onset (s)');
 % xlim([min(DataOut_OG_GAD2.Overall.PSTHtime) max(DataOut_OG_GAD2.Overall.PSTHtime)]);
 % % ylim([-0.1 1]);
 % yline(0);
