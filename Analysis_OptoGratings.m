@@ -4,8 +4,8 @@
 %   [] Separate by Orientation? -> Not sure I'm seeing this one... >
 %   Supplementary fig at most
 %   [] Check SEM calculation...
-%   [] Adapt script to extract LaserOn times from those rec that have it
-%   but to skip for those who don't
+%   [] Revisit the PctChange calculations -> PctDecrease currently taken over any
+%   unit that decreases, but PctIncrease also filters for significant difference
 
 %% Load in Data
 
@@ -14,8 +14,8 @@
 
 %% Set Up Struct
 
-DataOut_OG.ClusterData = cell2table(cell(0,18), 'VariableNames', {'Subject', 'RecDate', 'ClusterN', 'zeta_p', 'Area', 'SpontRate', 'ER_OptoOff', ...
-    'ER_OptoOn', 'SE_OptoOff', 'SE_OptoOn', 'PctChange', 'p_val', 'PSTHMean_Off', ...
+DataOut_OG.ClusterData = cell2table(cell(0,19), 'VariableNames', {'Subject', 'RecDate', 'ClusterN', 'zeta_p', 'Area', 'SpontRate', 'ER_OptoOff', ...
+    'ER_OptoOn', 'SE_OptoOff', 'SE_OptoOn', 'PctChange', 'p_val', 'EffectOpto' 'PSTHMean_Off', ...
     'PSTHSEM_Off', 'PSTHBinCenters_Off', 'PSTHMean_On', 'PSTHSEM_On', ...
     'PSTHBinCenters_On'});
 
@@ -69,6 +69,7 @@ SE_OptoOn = [];
 SE_OptoOff = [];
 PctChange = [];
 p_val = [];
+EffectOpto = [];
 PSTHMean_Off = [];
 PSTHSEM_Off = [];
 PSTHBinCenters_Off = [];
@@ -140,6 +141,15 @@ for intCl = 1:length(sAP.sCluster) % For each cluster:
         % T-test (Channel)
         [~,p_val_Cl] = ttest(EvokedRate_OptoOn_Cl, EvokedRate_OptoOff_Cl, 'Alpha', 0.01);
         
+        % Classification Effect Opto
+        if (p_val_Cl < 0.01) && (PctChange_Cl > 0);
+            EffectOpto_Cl = "Upregulated";
+        elseif (p_val_Cl < 0.01) && (PctChange_Cl < 0);
+            EffectOpto_Cl = "Downregulated";
+        else
+            EffectOpto_Cl = "Non-Significant";
+        end
+
         % -- Analysis pt. 2: PSTH --
         % PSTH Laser Off
         [vecMean_Off,vecSEM_Off,vecWindowBinCenters_Off,~] = doPEP(vecSpikes,vecTime,vecStimOnSecs(~vecLaserOn),sOptions);
@@ -159,6 +169,7 @@ for intCl = 1:length(sAP.sCluster) % For each cluster:
         SE_OptoOff = [SE_OptoOff; SEM_OptoOff];
         PctChange = [PctChange; PctChange_Cl];
         p_val = [p_val; p_val_Cl];
+        EffectOpto = [EffectOpto; EffectOpto_Cl];
         PSTHMean_On = [PSTHMean_On; vecMean_On]; % Note that all PSTH values are now baseline-subtracted!
         PSTHSEM_On = [PSTHSEM_On; vecSEM_On];
         PSTHBinCenters_On = [PSTHBinCenters_On; vecWindowBinCenters_On];
@@ -177,7 +188,7 @@ n_clusters = numel(ClusterN);
 
 % Write Table (Subject)
 ClusterData_Rec = table(ClusterN, zeta_p, Area, SpontRate, ER_OptoOff, ...
-    ER_OptoOn, SE_OptoOff, SE_OptoOn, PctChange, p_val, PSTHMean_Off, ...
+    ER_OptoOn, SE_OptoOff, SE_OptoOn, PctChange, p_val, EffectOpto, PSTHMean_Off, ...
     PSTHSEM_Off, PSTHBinCenters_Off, PSTHMean_On, PSTHSEM_On, ...
     PSTHBinCenters_On);
 
@@ -196,9 +207,9 @@ n_clusters_overall = height(DataOut_OG.ClusterData);
 AllM_Overall.NMice = numel(unique(DataOut_OG.ClusterData.Subject));
 AllM_Overall.NRecs = numel(unique([string(DataOut_OG.ClusterData.Subject) DataOut_OG.ClusterData.RecDate],"rows"));
 AllM_Overall.NCells = n_clusters_overall; % Probably will need to tweak this!
-AllM_Overall.NCells_Reduced = sum((DataOut_OG.ClusterData.p_val < 0.01) & DataOut_OG.ClusterData.PctChange < 0);
+AllM_Overall.NCells_Reduced = sum(DataOut_OG.ClusterData.EffectOpto == "Downregulated");
 AllM_Overall.MeanPctReduction = mean(DataOut_OG.ClusterData.PctChange(DataOut_OG.ClusterData.PctChange < 0));
-AllM_Overall.NCells_Increased = sum((DataOut_OG.ClusterData.p_val < 0.01) & DataOut_OG.ClusterData.PctChange > 0);
+AllM_Overall.NCells_Increased = sum(DataOut_OG.ClusterData.EffectOpto == "Upregulated");
 AllM_Overall.MeanPctIncrease = mean(DataOut_OG.ClusterData.PctChange((DataOut_OG.ClusterData.p_val<0.01) & (DataOut_OG.ClusterData.PctChange > 0)));
 AllM_Overall.ER_OptoOn = mean(DataOut_OG.ClusterData.ER_OptoOn);
 AllM_Overall.ER_OptoOff = mean(DataOut_OG.ClusterData.ER_OptoOff);
@@ -235,8 +246,8 @@ AllM_Overall.PSTHBinSize = 5e-3; % Binsize of PSTH
 AllM_Overall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
 AllM_Overall.PSTHBinCenters = DataOut_OG.ClusterData.PSTHBinCenters_On(1,:);
 
-DataOut_OG.ClusterDataUp = DataOut_OG.ClusterData((DataOut_OG.ClusterData.p_val < 0.01) & (DataOut_OG.ClusterData.PctChange > 0),:);
-DataOut_OG.ClusterDataDown = DataOut_OG.ClusterData((DataOut_OG.ClusterData.p_val < 0.01) & (DataOut_OG.ClusterData.PctChange < 0),:);
+DataOut_OG.ClusterDataUp = DataOut_OG.ClusterData(DataOut_OG.ClusterData.EffectOpto == "Upregulated",:);
+DataOut_OG.ClusterDataDown = DataOut_OG.ClusterData(DataOut_OG.ClusterData.EffectOpto == "Downregulated",:);
 DataOut_OG.ClusterDataNonSig = DataOut_OG.ClusterData(~(DataOut_OG.ClusterData.p_val < 0.01),:);
 
 DataOut_OG.Overall = AllM_Overall;

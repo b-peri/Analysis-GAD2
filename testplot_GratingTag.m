@@ -1,15 +1,15 @@
 % Plot Untagged
 
 figure; hold on;
-shadedErrorBar(test_Un_PSTH.PSTHBinCenters, test_Un_PSTH.PSTHMean_Off_norm, test_Un_PSTH.PSTHSEM_Off_norm, 'lineProps', 'k');
-shadedErrorBar(test_Un_PSTH.PSTHBinCenters, test_Un_PSTH.PSTHMean_On_norm, test_Un_PSTH.PSTHSEM_On_norm, 'lineProps', 'b');
+shadedErrorBar(Un_PSTH.PSTHBinCenters, Un_PSTH.PSTHMean_Off_z, Un_PSTH.PSTHSEM_Off_z, 'lineProps', 'k');
+shadedErrorBar(Un_PSTH.PSTHBinCenters, Un_PSTH.PSTHMean_On_z, Un_PSTH.PSTHSEM_On_z, 'lineProps', 'b');
 xline(0,'r--');
-ylabel('Normalized Response');
+ylabel('Normalized Response (Z-Score)');
 xlabel('Time from stimulus onset (s)');
-% xlim([min(test_Un_PSTH.PSTHtime) max(test_Un_PSTH.PSTHtime)]);
+xlim([-0.2 1.2]);
 % ylim([-0.1 1]);
 yline(0);
-text(0.94, 0.62, sprintf('%g units', height(test_Un)), 'FontSize',15);
+text(1, 2.25, sprintf('%g units', height(test_Un)), 'FontSize',15);
 legend('No Opto', 'Opto');
 title('Mean Response Untagged');
 fixfig;
@@ -19,15 +19,15 @@ hold off;
 % Plot Activated
 
 figure; hold on;
-shadedErrorBar(test_Act_PSTH.PSTHBinCenters, test_Act_PSTH.PSTHMean_Off_norm, test_Act_PSTH.PSTHSEM_Off_norm, 'lineProps', 'k');
-shadedErrorBar(test_Act_PSTH.PSTHBinCenters, test_Act_PSTH.PSTHMean_On_norm, test_Act_PSTH.PSTHSEM_On_norm, 'lineProps', 'b');
+shadedErrorBar(Act_PSTH.PSTHBinCenters, Act_PSTH.PSTHMean_Off_z, Act_PSTH.PSTHSEM_Off_z, 'lineProps', 'k');
+shadedErrorBar(Act_PSTH.PSTHBinCenters, Act_PSTH.PSTHMean_On_z, Act_PSTH.PSTHSEM_On_z, 'lineProps', 'b');
 xline(0,'r--');
-ylabel('Normalized Response');
+ylabel('Normalized Response (Z-Score)');
 xlabel('Time from stimulus onset (s)');
-% xlim([min(test_Act_PSTH.PSTHtime) max(test_Act_PSTH.PSTHtime)]);
+xlim([-0.2 1.2]);
 % ylim([-0.1 1]);
 yline(0);
-% text(0.94, 0.62, sprintf('%g units', height(test_Act), 'FontSize',15);
+text(1, 23, sprintf('%g units', height(test_Act)), 'FontSize',15);
 legend('No Opto', 'Opto');
 title('Mean Response Activated');
 fixfig;
@@ -37,15 +37,15 @@ hold off;
 % Plot Inhibited
 
 figure; hold on;
-shadedErrorBar(test_Inh_PSTH.PSTHBinCenters, test_Inh_PSTH.PSTHMean_Off_norm, test_Inh_PSTH.PSTHSEM_Off_norm, 'lineProps', 'k');
-shadedErrorBar(test_Inh_PSTH.PSTHBinCenters, test_Inh_PSTH.PSTHMean_On_norm, test_Inh_PSTH.PSTHSEM_On_norm, 'lineProps', 'b');
+shadedErrorBar(Inh_PSTH.PSTHBinCenters, Inh_PSTH.PSTHMean_Off_z, Inh_PSTH.PSTHSEM_Off_z, 'lineProps', 'k');
+shadedErrorBar(Inh_PSTH.PSTHBinCenters, Inh_PSTH.PSTHMean_On_z, Inh_PSTH.PSTHSEM_On_z, 'lineProps', 'b');
 xline(0,'r--');
-ylabel('Normalized Response');
+ylabel('Normalized Response (Z-Score)');
 xlabel('Time from stimulus onset (s)');
-% xlim([min(test_Inh_PSTH.PSTHtime) max(test_Inh_PSTH.PSTHtime)]);
+xlim([-0.2 1.2]);
 % ylim([-0.1 1]);
 yline(0);
-% text(0.94, 0.62, sprintf('%g units', height(test_Inh), 'FontSize',15);
+text(1, 9, sprintf('%g units', height(test_Inh)), 'FontSize',15);
 legend('No Opto', 'Opto');
 title('Mean Response Inhibited');
 fixfig;

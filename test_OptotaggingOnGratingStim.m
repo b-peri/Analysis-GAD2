@@ -8,7 +8,7 @@
 
 % [] Tweak inclusion window GAD2+ cells (REMOVE: -1ms - 6ms around LASER
 % ON; AND () around LASER OFF!!)
-% [] Add presence ratio as general incl. criterion
+
 
 %% Load in Data
 
@@ -40,7 +40,7 @@ end
 %% Grab Stimulus Data
 
 intNumClu = length(sAP.sCluster);
-structEP = sAP.cellBlock{1,3};
+structEP = sAP.cellBlock{1,1};
 vecLaserOnSecs = structEP.vecLaserOnTime;
 pulseDurTrial = structEP.PulseDurTrial;
 

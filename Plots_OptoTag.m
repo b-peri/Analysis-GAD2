@@ -11,7 +11,7 @@ pulseSelect = 0.05
 
 % -- A. GAD2 Cell Raster & Instantaneous FR (PSTHish) --
 % RasterPlot (79159_20230426: 446, 473)
-cell_sel_gad = [(GadTab.Subject + "_" + GadTab.RecDate + "_AP.mat") GadTab.ClusterN]
+cell_sel_gad = [(GadTab.Subject + "_" + GadTab.RecDate + "_AP.mat") GadTab.ClusterN];
 
 figure; 
 for i = 1:length(cell_sel_gad)
@@ -43,7 +43,7 @@ for i = 1:length(cell_sel_gad)
 end
 
 % B. Activated/Disinhibited Cell
-cell_sel_Act = [(ActTab.Subject + "_" + ActTab.RecDate + "_AP.mat") ActTab.ClusterN]
+cell_sel_Act = [(ActTab.Subject + "_" + ActTab.RecDate + "_AP.mat") ActTab.ClusterN];
 
 for i = 1:length(cell_sel_Act)
     sAP = load(cell_sel_Act(i,1)); sAP = sAP.sAP;
@@ -69,9 +69,9 @@ for i = 1:length(cell_sel_Act)
     xline(sAP.cellBlock{2}.vecStimOffTime(end),'r-')
 end
 
-% B. Inhibited Cell
+% C. Inhibited Cell
 
-cell_sel_Inh = [(InhTab.Subject + "_" + InhTab.RecDate + "_AP.mat") InhTab.ClusterN]
+cell_sel_Inh = [(InhTab.Subject + "_" + InhTab.RecDate + "_AP.mat") InhTab.ClusterN];
 
 for i = 1:length(cell_sel_Inh)
     sAP = load(cell_sel_Inh(i,1)); sAP = sAP.sAP;
@@ -88,7 +88,7 @@ for i = 1:length(cell_sel_Inh)
     fixfig; hold off;
     % IFR
     subplot(3,1,2); hold on;
-    plot(InhTab(i,:).IFR_Time{:}, InhTab(i,:).IFR_Rate{:});
+    plot(InhTab(i,:).PSTHBinCenters, InhTab(i,:).PSTHMean_20ms);
     fixfig; hold off;
     % Histogram Over Whole Rec.
     subplot(3,1,3); hold on;
@@ -108,17 +108,17 @@ GadTab_PSTH_z = ((GadTab.PSTHMean_20ms - GadTab.SpontRate)./GadTab.SpontRate_STD
 ActTab_PSTH_z = ((ActTab.PSTHMean_20ms - ActTab.SpontRate)./ActTab.SpontRate_STD);
 InhTab_PSTH_z = ((InhTab.PSTHMean_20ms - InhTab.SpontRate)./InhTab.SpontRate_STD);
 
-for i = 1:8
-    figure; hold on
-    bar(InhTab_PSTH_z(i,:))
-    yline(-1,'r')
-end
+% for i = 1:8
+%     figure; hold on
+%     bar(InhTab_PSTH_z(i,:))
+%     yline(-1,'r')
+% end
 
 ReorderedPSTH = [GadTab_PSTH_z; InhTab_PSTH_z; ActTab_PSTH_z];
 ReorderedPSTH(:,excl_idx) = NaN;
 figure; imagesc(ReorderedPSTH); yline(2)
 
-% PSTH Overlay Gad2, Inhibited, Activated response dynamics
+% 
 % figure; hold on;
 % plot(DOT.Overall.PSTHBinCenters, DOT.Overall.PSTHMean_20ms_GAD2);
 % plot(DOT.Overall.PSTHBinCenters, DOT.Overall.PSTHMean_20ms_Act);
@@ -129,7 +129,7 @@ figure; imagesc(ReorderedPSTH); yline(2)
 % title('z-scored');
 % hold off;
 
-% Z-Scored
+% PSTH Gad2, Inhibited, Activated response dynamics: Z-Scored
 figure; hold on;
 
 PSTHMean_GAD2_z = DOT.PSTHMean_20ms_GAD2_z;
@@ -175,6 +175,16 @@ ylabel('Mean Response (Normalized to Peak)');
 xlabel('Time from laser onset (ms)');
 title('BL-Subtracted and Normalized to Peak');
 fixfig; hold off;
+
+%% Boxplots Latency
+
+% [] -> Ask Robin about whether boxplot is the most appropriate way to
+% demonstrate this point given that N is so small
+
+figure;hold on;
+
+boxplot(DataOut_OT.ClusterData.Peak_Lat,DataOut_OT.ClusterData.CellClass);
+xlabel("Peak Latency (s)");
 
 %% Suppl. Figure 1
 
