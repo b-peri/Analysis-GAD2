@@ -1,11 +1,4 @@
-%% OptoGratings Analysis
-
-% To-DO:
-%   [] Separate by Orientation? -> Not sure I'm seeing this one... >
-%   Supplementary fig at most
-%   [] Check SEM calculation...
-%   [] Revisit the PctChange calculations -> PctDecrease currently taken over any
-%   unit that decreases, but PctIncrease also filters for significant difference
+%% Analysis Figure 2:  - Brandon D. Peri, 04/08/2023
 
 %% Load in Data
 
@@ -14,8 +7,8 @@
 
 %% Set Up Struct
 
-DataOut_OG.ClusterData = cell2table(cell(0,19), 'VariableNames', {'Subject', 'RecDate', 'ClusterN', 'zeta_p', 'Area', 'SpontRate', 'ER_OptoOff', ...
-    'ER_OptoOn', 'SE_OptoOff', 'SE_OptoOn', 'PctChange', 'p_val', 'EffectOpto' 'PSTHMean_Off', ...
+DataOut_OG.ClusterData = cell2table(cell(0,21), 'VariableNames', {'Subject', 'RecDate', 'ClusterN', 'zeta_p', 'Area', 'SpontRate', 'ER_OptoOff', ...
+    'ER_OptoOn', 'SE_OptoOff', 'SE_OptoOn', 'PctChange', 'p_val', 'EffectOpto', 'ER_OffsetOff', 'ER_OffsetOn', 'PSTHMean_Off', ...
     'PSTHSEM_Off', 'PSTHBinCenters_Off', 'PSTHMean_On', 'PSTHSEM_On', ...
     'PSTHBinCenters_On'});
 
@@ -70,6 +63,8 @@ SE_OptoOff = [];
 PctChange = [];
 p_val = [];
 EffectOpto = [];
+ER_OffsetOn = [];
+ER_OffsetOff = [];
 PSTHMean_Off = [];
 PSTHSEM_Off = [];
 PSTHBinCenters_Off = [];
@@ -89,8 +84,8 @@ vecROI = ["Superior colliculus zonal layer" "Superior colliculus" + ...
 % -- Prep Analysis pt 1. --
 % Spontaneous Rate = Mean rate in -1s - -100ms before stim onset
 % Visually Evoked Rate = (Mean rate in 10-250ms after stim onset) - Spontaneous Rate
-BinEdge = [-1 -0.1 0 0.2]; % Bin edges for Spike Counting w/ Histcounts
-binDur = [BinEdge(2) - BinEdge(1), BinEdge(4) - BinEdge(3)]; % Bin Duration [Spontaneous, Evoked] -> Divisor when calculating Firing Rate later (Spikes/Period)
+BinEdge = [-1 -0.1 0 0.2 1.0 1.2]; % Bin edges for Spike Counting w/ Histcounts
+binDur = [BinEdge(2) - BinEdge(1), BinEdge(4) - BinEdge(3), BinEdge(6) - BinEdge(5)]; % Bin Duration [Spontaneous, Evoked] -> Divisor when calculating Firing Rate later (Spikes/Period)
 n_trials = numel(vecStimOnSecs); % Number of Trials
 
 % -- Prep Analysis pt 2. --
@@ -107,18 +102,22 @@ for intCl = 1:length(sAP.sCluster) % For each cluster:
     dblZetaP = zetatest(vecSpikes,vecStimOnSecs(~vecLaserOn),0.9); % Compute zetatest for Stimuli w/o Opto -> Visually responsive neurons
     if dblZetaP < 0.01 && ismember(sAP.sCluster(intCl).Area, vecROI) && sAP.sCluster(intCl).Violations1ms < 0.25 %&& abs(sCluster(intCh).NonStationarity) < 0.25
         % -- Analysis pt 1.  Opto vs No-Opto --
-        sCounts_Opto = zeros(numel(vecStimOnSecs),2);
+        sCounts_Opto = zeros(numel(vecStimOnSecs),3);
         for intTrial=1:n_trials
 	        vecTheseEdges = BinEdge + vecStimOnSecs(intTrial); % Add stim onset time for this trial to rel. bin edges to get absolute bin edges
 	        [vecCounts,edges] = histcounts(vecSpikes,vecTheseEdges);
 	        sCounts_Opto(intTrial,1) = vecCounts(1); % Counts Spontaneous Rate
-            sCounts_Opto(intTrial,2) = vecCounts(3); % Count for Visual Response
+            sCounts_Opto(intTrial,2) = vecCounts(3); % Count for Visual Onset Response
+            sCounts_Opto(intTrial,3) = vecCounts(5); % Count for Visual Offset Response
         end
         
-        sRate_Opto = [sCounts_Opto(:,1)/binDur(1) sCounts_Opto(:,2)/binDur(2)];
+        sRate_Opto = [sCounts_Opto(:,1)/binDur(1) sCounts_Opto(:,2)/binDur(2) sCounts_Opto(:,3)/binDur(3)];
         sRate_OptoOn = sRate_Opto(vecLaserOn, 2); % Rates during stim for Opto trials
         sRate_OptoOff = sRate_Opto(~vecLaserOn, 2); % Rates during stim non-Opto trials
         
+        sRate_OffsetOn = sRate_Opto(vecLaserOn, 3);
+        sRate_OffsetOff = sRate_Opto(~vecLaserOn, 3);
+
         % Spontaneous Rate
         % SpontRate_Cl = mean(sCounts_Opto(:,1));
         SpontRate_Cl = mean(sRate_Opto(:,1));
@@ -126,6 +125,8 @@ for intCl = 1:length(sAP.sCluster) % For each cluster:
         % Overall Visually Evoked FRs (Channel)
         EvokedRate_OptoOn = mean(sRate_OptoOn) - SpontRate_Cl;
         EvokedRate_OptoOff = mean(sRate_OptoOff) - SpontRate_Cl;
+        EvokedRate_OffsetOn = mean(sRate_OffsetOn) - SpontRate_Cl;
+        EvokedRate_OffsetOff = mean(sRate_OffsetOff) - SpontRate_Cl;
 
         % Standard Error
         SEM_OptoOn = std(sRate_OptoOn, [], 1)/sqrt(n_trials);
@@ -170,6 +171,8 @@ for intCl = 1:length(sAP.sCluster) % For each cluster:
         PctChange = [PctChange; PctChange_Cl];
         p_val = [p_val; p_val_Cl];
         EffectOpto = [EffectOpto; EffectOpto_Cl];
+        ER_OffsetOn = [ER_OffsetOn; EvokedRate_OffsetOn];
+        ER_OffsetOff = [ER_OffsetOff; EvokedRate_OffsetOff];
         PSTHMean_On = [PSTHMean_On; vecMean_On]; % Note that all PSTH values are now baseline-subtracted!
         PSTHSEM_On = [PSTHSEM_On; vecSEM_On];
         PSTHBinCenters_On = [PSTHBinCenters_On; vecWindowBinCenters_On];
@@ -188,7 +191,7 @@ n_clusters = numel(ClusterN);
 
 % Write Table (Subject)
 ClusterData_Rec = table(ClusterN, zeta_p, Area, SpontRate, ER_OptoOff, ...
-    ER_OptoOn, SE_OptoOff, SE_OptoOn, PctChange, p_val, EffectOpto, PSTHMean_Off, ...
+    ER_OptoOn, SE_OptoOff, SE_OptoOn, PctChange, p_val, EffectOpto, ER_OffsetOff, ER_OffsetOn, PSTHMean_Off, ...
     PSTHSEM_Off, PSTHBinCenters_Off, PSTHMean_On, PSTHSEM_On, ...
     PSTHBinCenters_On);
 
@@ -207,26 +210,41 @@ n_clusters_overall = height(DataOut_OG.ClusterData);
 AllM_Overall.NMice = numel(unique(DataOut_OG.ClusterData.Subject));
 AllM_Overall.NRecs = numel(unique([string(DataOut_OG.ClusterData.Subject) DataOut_OG.ClusterData.RecDate],"rows"));
 AllM_Overall.NCells = n_clusters_overall; % Probably will need to tweak this!
+
+outliers = abs(zscore(DataOut_OG.ClusterData.ER_OptoOn)) > 3;
+AllM_Overall.ER_OptoOn = mean(DataOut_OG.ClusterData.ER_OptoOn(~outliers));
+AllM_Overall.ER_OptoOff = mean(DataOut_OG.ClusterData.ER_OptoOff(~outliers));
+AllM_Overall.SE_OptoOn = std(DataOut_OG.ClusterData.ER_OptoOn(~outliers), [], 1)/sqrt(n_clusters_overall);
+AllM_Overall.SE_OptoOff = std(DataOut_OG.ClusterData.ER_OptoOff(~outliers), [], 1)/sqrt(n_clusters_overall);
+% AllM_Overall.MeanPctChange = mean(DataOut_OG.ClusterData.PctChange(~outliers));
+AllM_Overall.MeanPctChange = (AllM_Overall.ER_OptoOn - AllM_Overall.ER_OptoOff)/abs(AllM_Overall.ER_OptoOff);
+
 AllM_Overall.NCells_Reduced = sum(DataOut_OG.ClusterData.EffectOpto == "Downregulated");
-AllM_Overall.MeanPctReduction = mean(DataOut_OG.ClusterData.PctChange(DataOut_OG.ClusterData.PctChange < 0));
+AllM_Overall.MeanPctReduction = mean(DataOut_OG.ClusterData.PctChange((DataOut_OG.ClusterData.p_val<0.01) & (DataOut_OG.ClusterData.PctChange < 0)));
 AllM_Overall.NCells_Increased = sum(DataOut_OG.ClusterData.EffectOpto == "Upregulated");
 AllM_Overall.MeanPctIncrease = mean(DataOut_OG.ClusterData.PctChange((DataOut_OG.ClusterData.p_val<0.01) & (DataOut_OG.ClusterData.PctChange > 0)));
-AllM_Overall.ER_OptoOn = mean(DataOut_OG.ClusterData.ER_OptoOn);
-AllM_Overall.ER_OptoOff = mean(DataOut_OG.ClusterData.ER_OptoOff);
-AllM_Overall.SE_OptoOn = std(DataOut_OG.ClusterData.ER_OptoOn, [], 1)/sqrt(n_clusters_overall);
-AllM_Overall.SE_OptoOff = std(DataOut_OG.ClusterData.ER_OptoOff, [], 1)/sqrt(n_clusters_overall);
-[~, AllM_Overall.p_val] = ttest(DataOut_OG.ClusterData.ER_OptoOn, DataOut_OG.ClusterData.ER_OptoOff, 'Alpha', 0.01);
 
-% Filter PSTH Values on Min and Max Laser Times
+% T-Test for Difference Between Evoked Rate in Laser On and Laser Off
+% conditions (Outliers removed)
+[~, AllM_Overall.p_val] = ttest(DataOut_OG.ClusterData.ER_OptoOn(~outliers), DataOut_OG.ClusterData.ER_OptoOff(~outliers), 'Alpha', 0.01);
+[~, AllM_Overall.p_val_offset] = ttest(DataOut_OG.ClusterData.ER_OffsetOn, DataOut_OG.ClusterData.ER_OffsetOff);
+
+% Exclude Artefact from PSTH (Outer Edges = Min and Max Laser On and Offset
+% times)
 PSTHBinCenters = PSTHBinCenters_Off(1,:);
-exclidx = (PSTHBinCenters > (mean(DiffTimes_Onset) - 2*std(DiffTimes_Onset)) & PSTHBinCenters < (mean(DiffTimes_Onset) + 2*std(DiffTimes_Onset))) | ...
+if ~isempty(DiffTimes_Onset)
+    exclidx = (PSTHBinCenters > (mean(DiffTimes_Onset) - 3*std(DiffTimes_Onset)) & PSTHBinCenters < (mean(DiffTimes_Onset) + 2*std(DiffTimes_Onset))) | ...
     (PSTHBinCenters > (1 + mean(DiffTimes_Offset) - 2*std(DiffTimes_Offset)) & PSTHBinCenters < (1 + mean(DiffTimes_Offset) + 2*std(DiffTimes_Offset)));
+else
+    exclidx = (PSTHBinCenters > (mean(DataOut_OG_GAD2.DiffTimes_Onset) - 3*std(DataOut_OG_GAD2.DiffTimes_Onset)) & PSTHBinCenters < (mean(DataOut_OG_GAD2.DiffTimes_Onset) + 3*std(DataOut_OG_GAD2.DiffTimes_Onset))) | ...
+    (PSTHBinCenters > (1 + mean(DataOut_OG_GAD2.DiffTimes_Offset) - 3*std(DataOut_OG_GAD2.DiffTimes_Offset)) & PSTHBinCenters < (1 + mean(DataOut_OG_GAD2.DiffTimes_Offset) + 3*std(DataOut_OG_GAD2.DiffTimes_Offset)));
+end
 DataOut_OG.ClusterData.PSTHMean_Off(:,exclidx) = NaN;
 DataOut_OG.ClusterData.PSTHMean_On(:,exclidx) = NaN;
 
 % Z-Scored PSTH
-PSTHoff_z = (DataOut_OG.ClusterData.PSTHMean_Off - mean(DataOut_OG.ClusterData.SpontRate))./std(DataOut_OG.ClusterData.SpontRate);
-PSTHon_z = (DataOut_OG.ClusterData.PSTHMean_On - mean(DataOut_OG.ClusterData.SpontRate))./std(DataOut_OG.ClusterData.SpontRate);
+PSTHoff_z = (DataOut_OG.ClusterData.PSTHMean_Off(~outliers,:) - mean(DataOut_OG.ClusterData.SpontRate(~outliers)))./std(DataOut_OG.ClusterData.SpontRate(~outliers));
+PSTHon_z = (DataOut_OG.ClusterData.PSTHMean_On(~outliers,:) - mean(DataOut_OG.ClusterData.SpontRate(~outliers)))./std(DataOut_OG.ClusterData.SpontRate(~outliers));
 
 AllM_Overall.PSTHMean_Off_z = mean(PSTHoff_z, 1);
 AllM_Overall.PSTHSEM_Off_z = std(PSTHoff_z, 1)/sqrt(n_clusters_overall);
@@ -234,13 +252,13 @@ AllM_Overall.PSTHMean_On_z = mean(PSTHon_z, 1);
 AllM_Overall.PSTHSEM_On_z = std(PSTHon_z, 1)/sqrt(n_clusters_overall);
 
 % Normalized Overall PSTH Values
-PSTHMean_Off_BL = DataOut_OG.ClusterData.PSTHMean_Off - DataOut_OG.ClusterData.SpontRate;
-PSTHMean_On_BL = DataOut_OG.ClusterData.PSTHMean_On - DataOut_OG.ClusterData.SpontRate;
+PSTHMean_Off_BL = DataOut_OG.ClusterData.PSTHMean_Off(~outliers,:) - DataOut_OG.ClusterData.SpontRate(~outliers);
+PSTHMean_On_BL = DataOut_OG.ClusterData.PSTHMean_On(~outliers,:) - DataOut_OG.ClusterData.SpontRate(~outliers);
 norm = max(PSTHMean_Off_BL,[],2);
 AllM_Overall.PSTHMean_Off_norm = mean(PSTHMean_Off_BL./norm, 1);
-AllM_Overall.PSTHSEM_Off_norm = std(PSTHMean_Off_BL./norm, 1)/sqrt(n_clusters_overall);
+AllM_Overall.PSTHSEM_Off_norm = std(PSTHMean_Off_BL./norm, 1)/sqrt(n_clusters_overall - sum(outliers));
 AllM_Overall.PSTHMean_On_norm = mean(PSTHMean_On_BL./norm, 1);
-AllM_Overall.PSTHSEM_On_norm = std(PSTHMean_On_BL./norm, 1)/sqrt(n_clusters_overall);
+AllM_Overall.PSTHSEM_On_norm = std(PSTHMean_On_BL./norm, 1)/sqrt(n_clusters_overall - sum(outliers));
 
 AllM_Overall.PSTHBinSize = 5e-3; % Binsize of PSTH
 AllM_Overall.PSTHtime = vecTime; % PSTH X-Axis range/binsize
@@ -249,6 +267,9 @@ AllM_Overall.PSTHBinCenters = DataOut_OG.ClusterData.PSTHBinCenters_On(1,:);
 DataOut_OG.ClusterDataUp = DataOut_OG.ClusterData(DataOut_OG.ClusterData.EffectOpto == "Upregulated",:);
 DataOut_OG.ClusterDataDown = DataOut_OG.ClusterData(DataOut_OG.ClusterData.EffectOpto == "Downregulated",:);
 DataOut_OG.ClusterDataNonSig = DataOut_OG.ClusterData(~(DataOut_OG.ClusterData.p_val < 0.01),:);
+
+DataOut_OG.DiffTimes_Onset = DiffTimes_Onset;
+DataOut_OG.DiffTimes_Offset = DiffTimes_Offset;
 
 DataOut_OG.Overall = AllM_Overall;
 % DataOut_OG.LatencyOpto_On = DiffTimes_Onset;

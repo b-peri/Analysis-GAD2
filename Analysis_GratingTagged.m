@@ -51,9 +51,9 @@ PSTHBinCenters = [];
 
 for i = 1:height(DataOut_OG_GAD2.ClusterData)
     row = DataOut_OG_GAD2.ClusterData(i,:);
-    TagCell = DataOut_OT.ClusterData(DataOut_OT.ClusterData.Subject == row.Subject ...
-        & DataOut_OT.ClusterData.RecDate == row.RecDate & ...
-        DataOut_OT.ClusterData.ClusterN == row.ClusterN,:);
+    TagCell = DataOut_OT_50ms.ClusterData(DataOut_OT_50ms.ClusterData.Subject == row.Subject ...
+        & DataOut_OT_50ms.ClusterData.RecDate == row.RecDate & ...
+        DataOut_OT_50ms.ClusterData.ClusterN == row.ClusterN,:);
     if ~isempty(TagCell)
         CellClass_OT = [CellClass_OT; TagCell.CellClass];
     else
@@ -76,16 +76,16 @@ for i = 1:height(DataOut_OG_GAD2.ClusterData)
     PSTHBinCenters = [PSTHBinCenters; row.PSTHBinCenters_Off];
 end
 
-test = table(Subject,RecDate,ClusterN,CellClass_OT,CellClass_OG,Area, zeta_p_OG,SpontRate,PSTHMean_Off, ...
+DataOut_Matched.All = table(Subject,RecDate,ClusterN,CellClass_OT,CellClass_OG,Area, zeta_p_OG,SpontRate,PSTHMean_Off, ...
     PSTHSEM_Off, PSTHMean_On, PSTHSEM_On, PSTHBinCenters);
 
-test_Un = test(test.CellClass_OT == "Untagged",:);
-test_GAD2 = test(test.CellClass_OT == "GAD2+",:);
-test_Act = test(test.CellClass_OT == "Activated",:);
-test_Inh = test(test.CellClass_OT == "Inhibited",:);
-test_Oth = test(test.CellClass_OT == "Other",:);
+DataOut_Matched.Untagged = DataOut_Matched.All(DataOut_Matched.All.CellClass_OT == "Untagged",:);
+DataOut_Matched.GAD2 = DataOut_Matched.All(DataOut_Matched.All.CellClass_OT == "GAD2+",:);
+DataOut_Matched.Act = DataOut_Matched.All(DataOut_Matched.All.CellClass_OT == "Activated",:);
+DataOut_Matched.Inh = DataOut_Matched.All(DataOut_Matched.All.CellClass_OT == "Inhibited",:);
+DataOut_Matched.Oth = DataOut_Matched.All(DataOut_Matched.All.CellClass_OT == "Other",:);
 
-% --- Z-Scored PSTH Values ---
+%% --- Z-Scored PSTH Values ---
 % Untagged
 Un_PSTH_off_z = (test_Un.PSTHMean_Off - mean(test_Un.SpontRate))./std(test_Un.SpontRate);
 Un_PSTH.PSTHMean_Off_z = mean(Un_PSTH_off_z, 1);

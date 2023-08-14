@@ -38,6 +38,7 @@ function plotRaster(vecSpikes,vecTrialStarts,dblTrialDur,intPlotMaxSpikes, Color
 	for intTrial=1:numel(vecTrialStarts)
 		vecTimes = vecTimePerSpike(vecTrialPerSpike==intTrial);
 		vecTimes(vecTimes>dblTrialDur)=[];
+        vecTimes(vecTimes > 0.049 & vecTimes < 0.051) = [];
 		line([vecTimes(:)';vecTimes(:)'],[intTrial*ones(1,numel(vecTimes))-0.5;intTrial*ones(1,numel(vecTimes))+0.5],'Color',Color,'LineWidth',1.5);
 	end
 	hold off
